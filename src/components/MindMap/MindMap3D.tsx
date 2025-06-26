@@ -87,23 +87,39 @@ export const MindMap3D: React.FC<MindMap3DProps> = ({
 
   // Get branch colors for first-level nodes
   const getBranchColors = useMemo(() => {
-    const colors = [
-      '#3b82f6', '#14b8a6', '#f97316', '#a855f7', 
-      '#22c55e', '#ec4899', '#8b5cf6', '#06b6d4',
-      '#84cc16', '#f59e0b', '#ef4444', '#6366f1'
+    // Sophisticated color palette with better contrast and visual appeal
+    const branchColors = [
+      { primary: '#3b82f6', secondary: '#1d4ed8', tertiary: '#93c5fd' }, // Blue family
+      { primary: '#14b8a6', secondary: '#0f766e', tertiary: '#5eead4' }, // Teal family
+      { primary: '#f97316', secondary: '#c2410c', tertiary: '#fed7aa' }, // Orange family
+      { primary: '#a855f7', secondary: '#7c3aed', tertiary: '#c4b5fd' }, // Purple family
+      { primary: '#22c55e', secondary: '#15803d', tertiary: '#86efac' }, // Green family
+      { primary: '#ec4899', secondary: '#be185d', tertiary: '#f9a8d4' }, // Pink family
+      { primary: '#8b5cf6', secondary: '#6d28d9', tertiary: '#c4b5fd' }, // Violet family
+      { primary: '#06b6d4', secondary: '#0891b2', tertiary: '#67e8f9' }, // Cyan family
+      { primary: '#84cc16', secondary: '#65a30d', tertiary: '#bef264' }, // Lime family
+      { primary: '#f59e0b', secondary: '#d97706', tertiary: '#fcd34d' }, // Amber family
+      { primary: '#ef4444', secondary: '#dc2626', tertiary: '#fca5a5' }, // Red family
+      { primary: '#6366f1', secondary: '#4f46e5', tertiary: '#a5b4fc' }, // Indigo family
+      { primary: '#10b981', secondary: '#059669', tertiary: '#6ee7b7' }, // Emerald family
+      { primary: '#f472b6', secondary: '#e879f9', tertiary: '#f0abfc' }, // Fuchsia family
+      { primary: '#06b6d4', secondary: '#0284c7', tertiary: '#7dd3fc' }, // Sky family
     ];
+    
     const branchMap = new Map<string, string>();
+    const levelColorMap = new Map<string, { level: number; branchIndex: number }>();
     
     nodes.forEach((rootNode, index) => {
-      const color = colors[index % colors.length];
-      const assignBranchColor = (node: MindMapNode) => {
-        branchMap.set(node.id, color);
+      const branchIndex = index % branchColors.length;
+      const assignBranchColor = (node: MindMapNode, level: number = 0) => {
+        levelColorMap.set(node.id, { level, branchIndex });
+        branchMap.set(node.id, branchColors[branchIndex].primary);
         node.children.forEach(child => assignBranchColor(child));
       };
       assignBranchColor(rootNode);
     });
     
-    return branchMap;
+    return { branchMap, levelColorMap, branchColors };
   }, [nodes]);
 
   // Find breadcrumb path to selected node
@@ -147,7 +163,22 @@ export const MindMap3D: React.FC<MindMap3DProps> = ({
       if (isHovered) return '#ffd93d';
       if (isHighlighted) return '#ffd93d';
       
-      return getBranchColors.get(node.id) || '#64748b';
+      const levelInfo = getBranchColors.levelColorMap.get(node.id);
+      if (!levelInfo) return '#64748b';
+      
+      const colorFamily = getBranchColors.branchColors[levelInfo.branchIndex];
+      
+      // Use different shades based on level for visual hierarchy
+      switch (levelInfo.level) {
+        case 0: return colorFamily.primary;   // Root nodes - primary color
+        case 1: return colorFamily.secondary; // First level - darker shade
+        case 2: return colorFamily.tertiary;  // Second level - lighter shade
+        default: 
+          // For deeper levels, create a gradient effect
+          const depth = Math.min(levelInfo.level - 2, 3);
+          const opacity = Math.max(0.6 - (depth * 0.1), 0.3);
+          return `${colorFamily.secondary}${Math.floor(opacity * 255).toString(16).padStart(2, '0')}`;
+      }
     };
 
     const getNodeSize = (node: MindMapNode) => {
@@ -183,7 +214,7 @@ export const MindMap3D: React.FC<MindMap3DProps> = ({
         originalNode: node,
         childCount,
         isRoot: node.level === 0,
-        branchColor: getBranchColors.get(node.id) || '#64748b'
+        branchColor: getBranchColors.branchMap.get(node.id) || '#64748b'
       };
 
       graphNodes.push(graphNode);
@@ -452,6 +483,20 @@ export const MindMap3D: React.FC<MindMap3DProps> = ({
           return isZoomedOut && !graphNode.isRoot ? Math.max(graphNode.size * 0.5, 2) : graphNode.size;
         }}
         linkColor={(link: any) => (link as GraphLink).isHighlighted ? '#ffd93d' : '#64748b'}
+        linkColor={(link: any) => {
+          if ((link as GraphLink).isHighlighted) return '#ffd93d';
+          
+          // Use branch color for links to create visual continuity
+          const sourceNode = graphData.nodes.find(n => n.id === link.source);
+          if (sourceNode) {
+            const levelInfo = getBranchColors.levelColorMap.get(sourceNode.id);
+            if (levelInfo) {
+              const colorFamily = getBranchColors.branchColors[levelInfo.branchIndex];
+              return colorFamily.tertiary;
+            }
+          }
+          return '#64748b';
+        }}
         linkWidth={(link: any) => (link as GraphLink).isHighlighted ? 4 : 2}
         linkOpacity={(link: any) => (link as GraphLink).isHighlighted ? 1 : 0.6}
         onNodeClick={handleNodeClick}
@@ -477,13 +522,35 @@ export const MindMap3D: React.FC<MindMap3DProps> = ({
           // Add glow effect for selected/hovered nodes
           if (selectedNode === graphNode.id || hoveredNode === graphNode.id) {
             const glowGeometry = new THREE.SphereGeometry(graphNode.size * 1.5);
+            
+            // Use complementary color for glow effect
+            let glowColor = graphNode.color;
+            const levelInfo = getBranchColors.levelColorMap.get(graphNode.id);
+            if (levelInfo) {
+              const colorFamily = getBranchColors.branchColors[levelInfo.branchIndex];
+              glowColor = selectedNode === graphNode.id ? colorFamily.tertiary : colorFamily.secondary;
+            }
+            
             const glowMaterial = new THREE.MeshBasicMaterial({
-              color: graphNode.color,
+              color: glowColor,
               transparent: true,
-              opacity: 0.3
+              opacity: selectedNode === graphNode.id ? 0.4 : 0.2
             });
             const glow = new THREE.Mesh(glowGeometry, glowMaterial);
             sphere.add(glow);
+            
+            // Add pulsing animation for selected node
+            if (selectedNode === graphNode.id) {
+              const pulseGlow = new THREE.Mesh(
+                new THREE.SphereGeometry(graphNode.size * 2),
+                new THREE.MeshBasicMaterial({
+                  color: glowColor,
+                  transparent: true,
+                  opacity: 0.1
+                })
+              );
+              sphere.add(pulseGlow);
+            }
           }
 
           // Add text label for root nodes or selected node
@@ -495,11 +562,21 @@ export const MindMap3D: React.FC<MindMap3DProps> = ({
               canvas.height = 128;
               
               // Background
-              context.fillStyle = 'rgba(0, 0, 0, 0.8)';
+              const levelInfo = getBranchColors.levelColorMap.get(graphNode.id);
+              let bgColor = 'rgba(0, 0, 0, 0.8)';
+              let textColor = 'white';
+              
+              if (levelInfo && graphNode.isRoot) {
+                const colorFamily = getBranchColors.branchColors[levelInfo.branchIndex];
+                bgColor = `${colorFamily.primary}dd`; // Add transparency
+                textColor = 'white';
+              }
+              
+              context.fillStyle = bgColor;
               context.fillRect(0, 0, canvas.width, canvas.height);
               
               // Text
-              context.fillStyle = 'white';
+              context.fillStyle = textColor;
               context.font = `${graphNode.isRoot ? '24' : '18'}px Arial`;
               context.textAlign = 'center';
               context.textBaseline = 'middle';
