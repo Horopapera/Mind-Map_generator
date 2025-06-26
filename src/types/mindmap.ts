@@ -17,3 +17,4 @@ export interface ParsedLine {
 
 export type LayoutType = 'tree' | 'radial';
 export type ViewMode = 'split' | 'preview' | 'input';
+export type VisualizationType = '2d' | '3d';

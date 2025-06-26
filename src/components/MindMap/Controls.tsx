@@ -7,9 +7,11 @@ import {
   Maximize2, 
   Minimize2,
   TreePine,
-  CircleDot
+  CircleDot,
+  Box,
+  Layers
 } from 'lucide-react';
-import { ViewMode, LayoutType } from '../../types/mindmap';
+import { ViewMode, LayoutType, VisualizationType } from '../../types/mindmap';
 
 interface ControlsProps {
   searchQuery: string;
@@ -21,6 +23,8 @@ interface ControlsProps {
   onViewModeChange: (mode: ViewMode) => void;
   layoutType: LayoutType;
   onLayoutChange: (layout: LayoutType) => void;
+  visualizationType: VisualizationType;
+  onVisualizationChange: (type: VisualizationType) => void;
   nodeCount: number;
 }
 
@@ -34,6 +38,8 @@ export const Controls: React.FC<ControlsProps> = ({
   onViewModeChange,
   layoutType,
   onLayoutChange,
+  visualizationType,
+  onVisualizationChange,
   nodeCount
 }) => {
   return (
@@ -91,8 +97,35 @@ export const Controls: React.FC<ControlsProps> = ({
             </button>
           </div>
           
-          {/* Layout Toggle */}
+          {/* Visualization Type Toggle */}
           <div className="flex bg-gray-100 rounded-lg p-1">
+            <button
+              onClick={() => onVisualizationChange('2d')}
+              className={`px-2 py-1 rounded transition-colors ${
+                visualizationType === '2d' 
+                  ? 'bg-white text-blue-600 shadow-sm' 
+                  : 'text-gray-600 hover:text-blue-600'
+              }`}
+              title="2D View"
+            >
+              <Layers size={16} />
+            </button>
+            <button
+              onClick={() => onVisualizationChange('3d')}
+              className={`px-2 py-1 rounded transition-colors ${
+                visualizationType === '3d' 
+                  ? 'bg-white text-blue-600 shadow-sm' 
+                  : 'text-gray-600 hover:text-blue-600'
+              }`}
+              title="3D View"
+            >
+              <Box size={16} />
+            </button>
+          </div>
+          
+          {/* Layout Toggle (only for 2D) */}
+          {visualizationType === '2d' && (
+            <div className="flex bg-gray-100 rounded-lg p-1">
             <button
               onClick={() => onLayoutChange('tree')}
               className={`px-2 py-1 rounded transition-colors ${
@@ -116,6 +149,7 @@ export const Controls: React.FC<ControlsProps> = ({
               <CircleDot size={16} />
             </button>
           </div>
+          )}
           
           {/* Action Buttons */}
           <button
