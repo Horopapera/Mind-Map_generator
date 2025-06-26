@@ -185,9 +185,6 @@ const generateStandaloneHTML = (nodes: MindMapNode[], inputText: string): string
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mind Map Viewer - ${exportDate}</title>
-    <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
-    <script src="https://unpkg.com/force-graph@1.43.0/dist/force-graph.min.js"></script>
-    <script src="https://unpkg.com/3d-force-graph@1.70.0/dist/3d-force-graph.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -305,6 +302,11 @@ const generateStandaloneHTML = (nodes: MindMapNode[], inputText: string): string
             background: #3b82f6;
             color: white;
             box-shadow: 0 1px 2px rgba(59, 130, 246, 0.3);
+        }
+        
+        .view-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
         
         .search-container {
@@ -576,6 +578,26 @@ const generateStandaloneHTML = (nodes: MindMapNode[], inputText: string): string
             box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1) !important;
         }
         
+        .library-status {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: #64748b;
+            font-size: 0.875rem;
+        }
+        
+        .error-message {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #dc2626;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 16px;
+            font-size: 0.875rem;
+        }
+        
         @media (max-width: 768px) {
             .header-content {
                 flex-direction: column;
@@ -632,10 +654,10 @@ const generateStandaloneHTML = (nodes: MindMapNode[], inputText: string): string
                 <button class="view-btn" data-view="radial">
                     ⭕ Radial
                 </button>
-                <button class="view-btn" data-view="2d">
+                <button class="view-btn" data-view="2d" id="btn2d">
                     📊 2D Force
                 </button>
-                <button class="view-btn" data-view="3d">
+                <button class="view-btn" data-view="3d" id="btn3d">
                     🌐 3D Force
                 </button>
             </div>
@@ -691,6 +713,11 @@ const generateStandaloneHTML = (nodes: MindMapNode[], inputText: string): string
         </div>
     </div>
 
+    <!-- Load external libraries -->
+    <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+    <script src="https://unpkg.com/force-graph@1.43.0/dist/force-graph.min.js"></script>
+    <script src="https://unpkg.com/3d-force-graph@1.70.0/dist/3d-force-graph.min.js"></script>
+
     <script>
         const mindMapData = ${nodesJson};
         let currentView = 'tree';
@@ -698,20 +725,58 @@ const generateStandaloneHTML = (nodes: MindMapNode[], inputText: string): string
         let graph2D, graph3D;
         let highlightedNodes = new Set();
         let resizeTimeout;
+        let librariesLoaded = {
+            three: false,
+            forceGraph: false,
+            forceGraph3D: false
+        };
         
         // Initialize the app
         document.addEventListener('DOMContentLoaded', function() {
+            checkLibraries();
             initializeViews();
             setupEventListeners();
             setupResizeHandler();
             renderTreeView();
         });
         
+        function checkLibraries() {
+            // Check if libraries are loaded
+            librariesLoaded.three = typeof THREE !== 'undefined';
+            librariesLoaded.forceGraph = typeof ForceGraph !== 'undefined';
+            librariesLoaded.forceGraph3D = typeof ForceGraph3D !== 'undefined';
+            
+            // Disable buttons if libraries aren't available
+            const btn2d = document.getElementById('btn2d');
+            const btn3d = document.getElementById('btn3d');
+            
+            if (!librariesLoaded.forceGraph) {
+                btn2d.disabled = true;
+                btn2d.title = '2D Force Graph library not available';
+                btn2d.style.opacity = '0.5';
+            }
+            
+            if (!librariesLoaded.three || !librariesLoaded.forceGraph3D) {
+                btn3d.disabled = true;
+                btn3d.title = '3D Force Graph library not available';
+                btn3d.style.opacity = '0.5';
+            }
+            
+            // Retry loading libraries after a delay
+            setTimeout(() => {
+                if (!librariesLoaded.forceGraph || !librariesLoaded.forceGraph3D) {
+                    checkLibraries();
+                }
+            }, 2000);
+        }
+        
         function initializeViews() {
             // Set up view switching
             document.querySelectorAll('.view-btn').forEach(btn => {
                 btn.addEventListener('click', function() {
-                    switchView(this.dataset.view);
+                    if (!this.disabled) {
+                        switchView(this.dataset.view);
+                    }
                 });
             });
         }
@@ -763,6 +828,17 @@ const generateStandaloneHTML = (nodes: MindMapNode[], inputText: string): string
         }
         
         function switchView(viewType) {
+            // Check if view is available
+            if (viewType === '2d' && !librariesLoaded.forceGraph) {
+                showError('2D Force Graph library is not available. Please check your internet connection.');
+                return;
+            }
+            
+            if (viewType === '3d' && (!librariesLoaded.three || !librariesLoaded.forceGraph3D)) {
+                showError('3D Force Graph library is not available. Please check your internet connection.');
+                return;
+            }
+            
             // Cleanup existing graphs before switching
             cleanupGraphs();
             
@@ -770,7 +846,10 @@ const generateStandaloneHTML = (nodes: MindMapNode[], inputText: string): string
             document.querySelectorAll('.view-btn').forEach(btn => {
                 btn.classList.remove('active');
             });
-            document.querySelector(\`[data-view="\${viewType}"]\`).classList.add('active');
+            const activeBtn = document.querySelector(\`[data-view="\${viewType}"]\`);
+            if (activeBtn && !activeBtn.disabled) {
+                activeBtn.classList.add('active');
+            }
             
             // Hide all views
             document.querySelectorAll('#treeView, #radialView, #2dView, #3dView').forEach(view => {
@@ -802,6 +881,26 @@ const generateStandaloneHTML = (nodes: MindMapNode[], inputText: string): string
                         break;
                 }
             });
+        }
+        
+        function showError(message) {
+            const container = document.querySelector('.mindmap-container');
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message';
+            errorDiv.textContent = message;
+            
+            // Remove existing error messages
+            const existingErrors = container.querySelectorAll('.error-message');
+            existingErrors.forEach(error => error.remove());
+            
+            container.appendChild(errorDiv);
+            
+            // Remove error after 5 seconds
+            setTimeout(() => {
+                if (errorDiv.parentNode) {
+                    errorDiv.parentNode.removeChild(errorDiv);
+                }
+            }, 5000);
         }
         
         function cleanupGraphs() {
@@ -844,6 +943,8 @@ const generateStandaloneHTML = (nodes: MindMapNode[], inputText: string): string
         
         function renderTreeView() {
             const container = document.getElementById('mindmap-tree');
+            if (!container) return;
+            
             container.innerHTML = '';
             mindMapData.forEach(rootNode => {
                 renderNode(rootNode, container);
@@ -851,6 +952,8 @@ const generateStandaloneHTML = (nodes: MindMapNode[], inputText: string): string
         }
         
         function renderNode(node, container) {
+            if (!container) return;
+            
             const nodeDiv = document.createElement('div');
             nodeDiv.className = 'node';
             nodeDiv.dataset.nodeId = node.id;
@@ -1012,8 +1115,8 @@ const generateStandaloneHTML = (nodes: MindMapNode[], inputText: string): string
             
             container.innerHTML = '';
             
-            if (typeof ForceGraph === 'undefined') {
-                container.innerHTML = '<div class="loading"><div class="spinner"></div><div>2D Force Graph library not available</div></div>';
+            if (!librariesLoaded.forceGraph) {
+                container.innerHTML = '<div class="library-status"><div class="spinner"></div><div>Loading 2D Force Graph library...</div><div style="margin-top: 8px; font-size: 0.75rem;">Please check your internet connection</div></div>';
                 return;
             }
             
@@ -1039,7 +1142,7 @@ const generateStandaloneHTML = (nodes: MindMapNode[], inputText: string): string
                     .d3VelocityDecay(0.3);
             } catch (error) {
                 console.error('Error initializing 2D graph:', error);
-                container.innerHTML = '<div class="loading"><div>Error loading 2D visualization</div></div>';
+                container.innerHTML = '<div class="library-status"><div>Error loading 2D visualization</div><div style="margin-top: 8px; font-size: 0.75rem;">Please try refreshing the page</div></div>';
             }
         }
         
@@ -1050,8 +1153,8 @@ const generateStandaloneHTML = (nodes: MindMapNode[], inputText: string): string
                 return;
             }
             
-            if (typeof ForceGraph3D === 'undefined') {
-                container.innerHTML = '<div class="loading"><div class="spinner"></div><div>3D Force Graph library not available</div></div>';
+            if (!librariesLoaded.three || !librariesLoaded.forceGraph3D) {
+                container.innerHTML = '<div class="library-status"><div class="spinner"></div><div>Loading 3D Force Graph library...</div><div style="margin-top: 8px; font-size: 0.75rem;">Please check your internet connection</div></div>';
                 return;
             }
             
@@ -1083,7 +1186,7 @@ const generateStandaloneHTML = (nodes: MindMapNode[], inputText: string): string
                     .d3VelocityDecay(0.1);
             } catch (error) {
                 console.error('Error initializing 3D graph:', error);
-                container.innerHTML = '<div class="loading"><div>Error loading 3D visualization</div></div>';
+                container.innerHTML = '<div class="library-status"><div>Error loading 3D visualization</div><div style="margin-top: 8px; font-size: 0.75rem;">Please try refreshing the page</div></div>';
             }
         }
         
