@@ -12,6 +12,8 @@ import {
   Layers
 } from 'lucide-react';
 import { ViewMode, LayoutType, VisualizationType } from '../../types/mindmap';
+import { ExportControls } from './ExportControls';
+import { MindMapNode } from '../../types/mindmap';
 
 interface ControlsProps {
   searchQuery: string;
@@ -26,6 +28,10 @@ interface ControlsProps {
   visualizationType: VisualizationType;
   onVisualizationChange: (type: VisualizationType) => void;
   nodeCount: number;
+  nodes: MindMapNode[];
+  inputText: string;
+  mindMapRef: React.RefObject<HTMLDivElement>;
+  threejsRenderer?: any;
 }
 
 export const Controls: React.FC<ControlsProps> = ({
@@ -40,7 +46,11 @@ export const Controls: React.FC<ControlsProps> = ({
   onLayoutChange,
   visualizationType,
   onVisualizationChange,
-  nodeCount
+  nodeCount,
+  nodes,
+  inputText,
+  mindMapRef,
+  threejsRenderer
 }) => {
   return (
     <div className="bg-white border-b border-gray-200 p-4">
@@ -176,6 +186,17 @@ export const Controls: React.FC<ControlsProps> = ({
             <RotateCcw size={16} />
           </button>
         </div>
+      </div>
+      
+      {/* Export Controls */}
+      <div className="mt-3">
+        <ExportControls
+          nodes={nodes}
+          inputText={inputText}
+          visualizationType={visualizationType}
+          mindMapRef={mindMapRef}
+          threejsRenderer={threejsRenderer}
+        />
       </div>
       
       {/* Stats */}

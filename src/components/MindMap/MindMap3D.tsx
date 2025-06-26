@@ -11,6 +11,7 @@ interface MindMap3DProps {
   onToggleExpand: (nodeId: string) => void;
   searchQuery?: string;
   highlightedNodes?: Set<string>;
+  onRendererReady?: (renderer: any) => void;
 }
 
 interface GraphNode {
@@ -43,7 +44,8 @@ export const MindMap3D: React.FC<MindMap3DProps> = ({
   nodes,
   onToggleExpand,
   searchQuery,
-  highlightedNodes
+  highlightedNodes,
+  onRendererReady
 }) => {
   const fgRef = useRef<any>();
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
@@ -53,6 +55,16 @@ export const MindMap3D: React.FC<MindMap3DProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [breadcrumbs, setBreadcrumbs] = useState<MindMapNode[]>([]);
   const [isZoomedOut, setIsZoomedOut] = useState(false);
+
+  // Expose renderer for export functionality
+  useEffect(() => {
+    if (fgRef.current && onRendererReady) {
+      const renderer = fgRef.current.renderer();
+      if (renderer) {
+        onRendererReady(renderer);
+      }
+    }
+  }, [onRendererReady]);
 
   // Update dimensions on mount and resize
   useEffect(() => {

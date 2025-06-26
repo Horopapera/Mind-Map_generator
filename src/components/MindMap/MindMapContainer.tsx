@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useRef } from 'react';
 import { parseTextToMindMap, searchNodes, flattenNodes } from '../../lib/parser';
 import { MindMapNode, ViewMode, LayoutType, VisualizationType } from '../../types/mindmap';
 import { Controls } from './Controls';
@@ -13,6 +14,8 @@ export const MindMapContainer: React.FC = () => {
   const [viewMode, setViewMode] = useState<ViewMode>('split');
   const [layoutType, setLayoutType] = useState<LayoutType>('tree');
   const [visualizationType, setVisualizationType] = useState<VisualizationType>('2d');
+  const mindMapRef = useRef<HTMLDivElement>(null);
+  const [threejsRenderer, setThreejsRenderer] = useState<any>(null);
   
   // Parse text to mind map
   useEffect(() => {
@@ -95,6 +98,10 @@ export const MindMapContainer: React.FC = () => {
         visualizationType={visualizationType}
         onVisualizationChange={setVisualizationType}
         nodeCount={nodeCount}
+        nodes={nodes}
+        inputText={inputText}
+        mindMapRef={mindMapRef}
+        threejsRenderer={threejsRenderer}
       />
       
       <div className="flex-1 flex overflow-hidden">
@@ -108,7 +115,10 @@ export const MindMapContainer: React.FC = () => {
         )}
         
         {(viewMode === 'split' || viewMode === 'preview') && (
-          <div className={`${viewMode === 'split' ? 'w-1/2' : 'w-full'} bg-white overflow-auto`}>
+          <div 
+            ref={mindMapRef}
+            className={`${viewMode === 'split' ? 'w-1/2' : 'w-full'} bg-white overflow-auto`}
+          >
             {visualizationType === '2d' ? (
               <MindMapVisualization
                 nodes={nodes}
@@ -123,6 +133,7 @@ export const MindMapContainer: React.FC = () => {
                 onToggleExpand={handleToggleExpand}
                 searchQuery={searchQuery}
                 highlightedNodes={searchResults}
+                onRendererReady={setThreejsRenderer}
               />
             )}
           </div>
