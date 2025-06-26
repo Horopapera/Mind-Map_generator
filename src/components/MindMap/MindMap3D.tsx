@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import ForceGraph3D from 'react-force-graph-3d';
 import * as THREE from 'three';
 import { MindMapNode } from '../../types/mindmap';
+import { Search, Home, ChevronRight, Maximize2, Minimize2 } from 'lucide-react';
 
 interface MindMap3DProps {
   nodes: MindMapNode[];
@@ -20,17 +21,23 @@ interface GraphNode {
   size: number;
   isHighlighted: boolean;
   originalNode: MindMapNode;
+  childCount: number;
+  isRoot: boolean;
+  branchColor: string;
 }
 
 interface GraphLink {
   source: string;
   target: string;
+  isHighlighted: boolean;
 }
 
 interface GraphData {
   nodes: GraphNode[];
   links: GraphLink[];
 }
+
+type LayoutMode = 'force' | 'radial';
 
 export const MindMap3D: React.FC<MindMap3DProps> = ({
   nodes,
@@ -40,7 +47,12 @@ export const MindMap3D: React.FC<MindMap3DProps> = ({
 }) => {
   const fgRef = useRef<any>();
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
+  const [hoveredNode, setHoveredNode] = useState<string | null>(null);
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
+  const [layoutMode, setLayoutMode] = useState<LayoutMode>('force');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [breadcrumbs, setBreadcrumbs] = useState<MindMapNode[]>([]);
+  const [isZoomedOut, setIsZoomedOut] = useState(false);
 
   // Update dimensions on mount and resize
   useEffect(() => {
@@ -59,52 +71,130 @@ export const MindMap3D: React.FC<MindMap3DProps> = ({
     return () => window.removeEventListener('resize', updateDimensions);
   }, []);
 
+  // Monitor zoom level for performance optimization
+  useEffect(() => {
+    const checkZoomLevel = () => {
+      if (fgRef.current) {
+        const camera = fgRef.current.camera();
+        const distance = camera.position.distanceTo(new THREE.Vector3(0, 0, 0));
+        setIsZoomedOut(distance > 500);
+      }
+    };
+
+    const interval = setInterval(checkZoomLevel, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Get branch colors for first-level nodes
+  const getBranchColors = useMemo(() => {
+    const colors = [
+      '#3b82f6', '#14b8a6', '#f97316', '#a855f7', 
+      '#22c55e', '#ec4899', '#8b5cf6', '#06b6d4',
+      '#84cc16', '#f59e0b', '#ef4444', '#6366f1'
+    ];
+    const branchMap = new Map<string, string>();
+    
+    nodes.forEach((rootNode, index) => {
+      const color = colors[index % colors.length];
+      const assignBranchColor = (node: MindMapNode) => {
+        branchMap.set(node.id, color);
+        node.children.forEach(child => assignBranchColor(child));
+      };
+      assignBranchColor(rootNode);
+    });
+    
+    return branchMap;
+  }, [nodes]);
+
+  // Find breadcrumb path to selected node
+  const findBreadcrumbPath = useCallback((nodeId: string): MindMapNode[] => {
+    const path: MindMapNode[] = [];
+    
+    const findPath = (nodeList: MindMapNode[], targetId: string): boolean => {
+      for (const node of nodeList) {
+        path.push(node);
+        if (node.id === targetId) {
+          return true;
+        }
+        if (node.children.length > 0 && findPath(node.children, targetId)) {
+          return true;
+        }
+        path.pop();
+      }
+      return false;
+    };
+    
+    findPath(nodes, nodeId);
+    return path;
+  }, [nodes]);
+
+  // Update breadcrumbs when selected node changes
+  useEffect(() => {
+    if (selectedNode) {
+      setBreadcrumbs(findBreadcrumbPath(selectedNode));
+    } else {
+      setBreadcrumbs([]);
+    }
+  }, [selectedNode, findBreadcrumbPath]);
+
   // Convert tree structure to graph data
   const graphData = useMemo((): GraphData => {
     const graphNodes: GraphNode[] = [];
     const graphLinks: GraphLink[] = [];
 
-    const getNodeColor = (level: number, isHighlighted: boolean, isSelected: boolean) => {
+    const getNodeColor = (node: MindMapNode, isHighlighted: boolean, isSelected: boolean, isHovered: boolean) => {
       if (isSelected) return '#ff6b6b';
+      if (isHovered) return '#ffd93d';
       if (isHighlighted) return '#ffd93d';
       
-      const colors = [
-        '#3b82f6', // blue
-        '#14b8a6', // teal
-        '#f97316', // orange
-        '#a855f7', // purple
-        '#22c55e', // green
-        '#ec4899'  // pink
-      ];
-      return colors[level % colors.length];
+      return getBranchColors.get(node.id) || '#64748b';
     };
 
-    const getNodeSize = (level: number, hasChildren: boolean) => {
-      const baseSize = hasChildren ? 8 : 5;
-      return Math.max(baseSize - level * 1, 3);
+    const getNodeSize = (node: MindMapNode) => {
+      const childCount = node.children.length;
+      const baseSize = node.level === 0 ? 12 : 8;
+      const childBonus = Math.min(childCount * 2, 8);
+      const levelPenalty = Math.max(node.level * 1, 0);
+      return Math.max(baseSize + childBonus - levelPenalty, 4);
+    };
+
+    const countAllChildren = (node: MindMapNode): number => {
+      let count = node.children.length;
+      node.children.forEach(child => {
+        count += countAllChildren(child);
+      });
+      return count;
     };
 
     const processNode = (node: MindMapNode, parentId?: string) => {
-      const isHighlighted = highlightedNodes?.has(node.id) || false;
+      const isHighlighted = highlightedNodes?.has(node.id) || 
+                           (searchTerm && node.label.toLowerCase().includes(searchTerm.toLowerCase())) || false;
       const isSelected = selectedNode === node.id;
+      const isHovered = hoveredNode === node.id;
+      const childCount = countAllChildren(node);
       
       const graphNode: GraphNode = {
         id: node.id,
         name: node.label,
         level: node.level,
-        color: getNodeColor(node.level, isHighlighted, isSelected),
-        size: getNodeSize(node.level, node.children.length > 0),
+        color: getNodeColor(node, isHighlighted, isSelected, isHovered),
+        size: getNodeSize(node),
         isHighlighted,
-        originalNode: node
+        originalNode: node,
+        childCount,
+        isRoot: node.level === 0,
+        branchColor: getBranchColors.get(node.id) || '#64748b'
       };
 
       graphNodes.push(graphNode);
 
       // Add link to parent
       if (parentId) {
+        const isLinkHighlighted = isSelected || selectedNode === parentId;
         graphLinks.push({
           source: parentId,
-          target: node.id
+          target: node.id,
+          isHighlighted: isLinkHighlighted
         });
       }
 
@@ -122,31 +212,72 @@ export const MindMap3D: React.FC<MindMap3DProps> = ({
     });
 
     return { nodes: graphNodes, links: graphLinks };
-  }, [nodes, highlightedNodes, selectedNode]);
+  }, [nodes, highlightedNodes, selectedNode, hoveredNode, searchTerm, getBranchColors]);
 
-  const handleNodeClick = (node: any) => {
+  const handleNodeClick = useCallback((node: any) => {
     const graphNode = node as GraphNode;
     setSelectedNode(graphNode.id);
     
-    // Toggle expand if node has children
+    // Center camera on clicked node with smooth animation
+    if (fgRef.current) {
+      const distance = 150;
+      fgRef.current.cameraPosition(
+        { 
+          x: node.x + distance, 
+          y: node.y + distance, 
+          z: node.z + distance 
+        },
+        node,
+        1500
+      );
+    }
+  }, []);
+
+  const handleNodeDoubleClick = useCallback((node: any) => {
+    const graphNode = node as GraphNode;
     if (graphNode.originalNode.children.length > 0) {
       onToggleExpand(graphNode.id);
     }
+  }, [onToggleExpand]);
 
-    // Center camera on clicked node
-    if (fgRef.current) {
-      fgRef.current.cameraPosition(
-        { x: node.x + 100, y: node.y + 100, z: node.z + 100 },
-        node,
-        1000
-      );
+  const handleNodeHover = useCallback((node: any) => {
+    setHoveredNode(node ? node.id : null);
+  }, []);
+
+  const handleSearch = useCallback((nodeId: string) => {
+    setSelectedNode(nodeId);
+    setSearchTerm('');
+    
+    // Find the node in graph data and center on it
+    const targetNode = graphData.nodes.find(n => n.id === nodeId);
+    if (targetNode && fgRef.current) {
+      // Simulate node position for centering
+      setTimeout(() => {
+        if (fgRef.current) {
+          fgRef.current.cameraPosition(
+            { x: 100, y: 100, z: 100 },
+            { x: 0, y: 0, z: 0 },
+            1500
+          );
+        }
+      }, 100);
     }
-  };
+  }, [graphData.nodes]);
 
-  const highlightText = (text: string, query: string) => {
-    if (!query.trim()) return text;
-    return text.toLowerCase().includes(query.toLowerCase()) ? `🔍 ${text}` : text;
-  };
+  const searchResults = useMemo(() => {
+    if (!searchTerm.trim()) return [];
+    return graphData.nodes.filter(node => 
+      node.name.toLowerCase().includes(searchTerm.toLowerCase())
+    ).slice(0, 10);
+  }, [graphData.nodes, searchTerm]);
+
+  const resetView = useCallback(() => {
+    setSelectedNode(null);
+    setSearchTerm('');
+    if (fgRef.current) {
+      fgRef.current.zoomToFit(1000);
+    }
+  }, []);
 
   if (nodes.length === 0) {
     return (
@@ -162,30 +293,142 @@ export const MindMap3D: React.FC<MindMap3DProps> = ({
 
   return (
     <div className="w-full h-full relative bg-gray-900 rounded-lg overflow-hidden">
-      {/* Controls overlay */}
-      <div className="absolute top-4 left-4 z-10 bg-black bg-opacity-50 text-white p-3 rounded-lg text-sm">
-        <div className="space-y-1">
-          <div>🖱️ Click: Select/Expand nodes</div>
-          <div>🔄 Drag: Rotate view</div>
-          <div>🔍 Scroll: Zoom in/out</div>
-          <div>📍 Nodes: {graphData.nodes.length}</div>
-          {selectedNode && (
-            <div className="mt-2 pt-2 border-t border-gray-600">
-              <div className="text-yellow-300">Selected:</div>
-              <div className="truncate max-w-48">
-                {graphData.nodes.find(n => n.id === selectedNode)?.name}
-              </div>
+      {/* Top Controls */}
+      <div className="absolute top-4 left-4 right-4 z-10 flex items-center justify-between">
+        {/* Search */}
+        <div className="relative">
+          <div className="flex items-center bg-black bg-opacity-70 rounded-lg">
+            <div className="relative">
+              <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-300" />
+              <input
+                type="text"
+                placeholder="Search nodes..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-64 pl-10 pr-4 py-2 bg-transparent text-white placeholder-gray-400 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+          </div>
+          
+          {/* Search Results Dropdown */}
+          {searchResults.length > 0 && (
+            <div className="absolute top-full left-0 mt-1 w-64 bg-black bg-opacity-90 border border-gray-600 rounded-lg max-h-48 overflow-y-auto z-20">
+              {searchResults.map(node => (
+                <button
+                  key={node.id}
+                  onClick={() => handleSearch(node.id)}
+                  className="w-full text-left px-3 py-2 text-white hover:bg-gray-700 border-b border-gray-700 last:border-b-0"
+                >
+                  <div className="truncate">{node.name}</div>
+                  <div className="text-xs text-gray-400">Level {node.level} • {node.childCount} children</div>
+                </button>
+              ))}
             </div>
           )}
         </div>
+
+        {/* Layout and View Controls */}
+        <div className="flex items-center gap-2">
+          <div className="flex bg-black bg-opacity-70 rounded-lg p-1">
+            <button
+              onClick={() => setLayoutMode('force')}
+              className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+                layoutMode === 'force' 
+                  ? 'bg-blue-600 text-white' 
+                  : 'text-gray-300 hover:text-white'
+              }`}
+            >
+              Force
+            </button>
+            <button
+              onClick={() => setLayoutMode('radial')}
+              className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+                layoutMode === 'radial' 
+                  ? 'bg-blue-600 text-white' 
+                  : 'text-gray-300 hover:text-white'
+              }`}
+            >
+              Radial
+            </button>
+          </div>
+          
+          <button
+            onClick={resetView}
+            className="p-2 bg-black bg-opacity-70 text-gray-300 hover:text-white rounded-lg transition-colors"
+            title="Reset View"
+          >
+            <Home size={16} />
+          </button>
+        </div>
       </div>
 
-      {/* Search indicator */}
-      {searchQuery && (
-        <div className="absolute top-4 right-4 z-10 bg-yellow-500 text-black p-2 rounded-lg text-sm font-medium">
-          🔍 Searching: "{searchQuery}"
+      {/* Breadcrumbs */}
+      {breadcrumbs.length > 0 && (
+        <div className="absolute top-16 left-4 z-10 bg-black bg-opacity-70 text-white p-3 rounded-lg max-w-md">
+          <div className="flex items-center gap-1 text-sm">
+            <Home size={12} />
+            {breadcrumbs.map((node, index) => (
+              <React.Fragment key={node.id}>
+                {index > 0 && <ChevronRight size={12} className="text-gray-400" />}
+                <button
+                  onClick={() => handleSearch(node.id)}
+                  className="hover:text-blue-400 transition-colors truncate max-w-24"
+                  title={node.label}
+                >
+                  {node.label}
+                </button>
+              </React.Fragment>
+            ))}
+          </div>
         </div>
       )}
+
+      {/* Node Info Panel */}
+      {(selectedNode || hoveredNode) && (
+        <div className="absolute top-4 right-4 z-10 bg-black bg-opacity-80 text-white p-4 rounded-lg max-w-xs">
+          {(() => {
+            const node = graphData.nodes.find(n => n.id === (selectedNode || hoveredNode));
+            if (!node) return null;
+            
+            return (
+              <div>
+                <div className="font-medium text-lg mb-2 break-words">{node.name}</div>
+                <div className="space-y-1 text-sm text-gray-300">
+                  <div>Level: {node.level}</div>
+                  <div>Children: {node.originalNode.children.length}</div>
+                  <div>Total descendants: {node.childCount}</div>
+                  {node.isRoot && <div className="text-yellow-400">Root Node</div>}
+                </div>
+                {selectedNode === node.id && (
+                  <div className="mt-3 text-xs text-gray-400">
+                    Click: Select • Double-click: Expand/Collapse
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+        </div>
+      )}
+
+      {/* Stats */}
+      <div className="absolute bottom-4 left-4 z-10 bg-black bg-opacity-70 text-white p-3 rounded-lg text-sm">
+        <div className="space-y-1">
+          <div>📍 Nodes: {graphData.nodes.length}</div>
+          <div>🔗 Links: {graphData.links.length}</div>
+          <div>🎯 Layout: {layoutMode}</div>
+          {isZoomedOut && <div className="text-yellow-400">⚡ Performance mode</div>}
+        </div>
+      </div>
+
+      {/* Controls Help */}
+      <div className="absolute bottom-4 right-4 z-10 bg-black bg-opacity-70 text-white p-3 rounded-lg text-sm">
+        <div className="space-y-1">
+          <div>🖱️ Click: Select node</div>
+          <div>🖱️ Double-click: Expand/Collapse</div>
+          <div>🔄 Drag: Rotate view</div>
+          <div>🔍 Scroll: Zoom</div>
+        </div>
+      </div>
 
       <ForceGraph3D
         ref={fgRef}
@@ -194,14 +437,26 @@ export const MindMap3D: React.FC<MindMap3DProps> = ({
         graphData={graphData}
         nodeLabel={(node: any) => {
           const graphNode = node as GraphNode;
-          return highlightText(graphNode.name, searchQuery || '');
+          return `<div style="background: rgba(0,0,0,0.8); color: white; padding: 8px; border-radius: 4px; max-width: 200px;">
+            <div style="font-weight: bold; margin-bottom: 4px;">${graphNode.name}</div>
+            <div style="font-size: 12px; color: #ccc;">
+              Level: ${graphNode.level}<br/>
+              Children: ${graphNode.originalNode.children.length}<br/>
+              Total descendants: ${graphNode.childCount}
+            </div>
+          </div>`;
         }}
         nodeColor={(node: any) => (node as GraphNode).color}
-        nodeVal={(node: any) => (node as GraphNode).size}
-        linkColor={() => '#64748b'}
-        linkWidth={2}
-        linkOpacity={0.6}
+        nodeVal={(node: any) => {
+          const graphNode = node as GraphNode;
+          return isZoomedOut && !graphNode.isRoot ? Math.max(graphNode.size * 0.5, 2) : graphNode.size;
+        }}
+        linkColor={(link: any) => (link as GraphLink).isHighlighted ? '#ffd93d' : '#64748b'}
+        linkWidth={(link: any) => (link as GraphLink).isHighlighted ? 4 : 2}
+        linkOpacity={(link: any) => (link as GraphLink).isHighlighted ? 1 : 0.6}
         onNodeClick={handleNodeClick}
+        onNodeRightClick={handleNodeDoubleClick}
+        onNodeHover={handleNodeHover}
         backgroundColor="rgba(0,0,0,0)"
         showNavInfo={false}
         controlType="orbit"
@@ -210,38 +465,60 @@ export const MindMap3D: React.FC<MindMap3DProps> = ({
         nodeThreeObject={(node: any) => {
           const graphNode = node as GraphNode;
           
-          // Create a sphere geometry for the node
+          // Create main sphere with glow effect
           const geometry = new THREE.SphereGeometry(graphNode.size);
           const material = new THREE.MeshLambertMaterial({ 
             color: graphNode.color,
             transparent: true,
-            opacity: graphNode.isHighlighted ? 1 : 0.8
+            opacity: graphNode.isHighlighted || selectedNode === graphNode.id ? 1 : 0.8
           });
           const sphere = new THREE.Mesh(geometry, material);
 
-          // Add text label
-          if (typeof THREE !== 'undefined') {
+          // Add glow effect for selected/hovered nodes
+          if (selectedNode === graphNode.id || hoveredNode === graphNode.id) {
+            const glowGeometry = new THREE.SphereGeometry(graphNode.size * 1.5);
+            const glowMaterial = new THREE.MeshBasicMaterial({
+              color: graphNode.color,
+              transparent: true,
+              opacity: 0.3
+            });
+            const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+            sphere.add(glow);
+          }
+
+          // Add text label for root nodes or selected node
+          if (graphNode.isRoot || selectedNode === graphNode.id || (!isZoomedOut && graphNode.level <= 2)) {
             const canvas = document.createElement('canvas');
             const context = canvas.getContext('2d');
             if (context) {
-              canvas.width = 256;
-              canvas.height = 64;
-              context.fillStyle = 'white';
+              canvas.width = 512;
+              canvas.height = 128;
+              
+              // Background
+              context.fillStyle = 'rgba(0, 0, 0, 0.8)';
               context.fillRect(0, 0, canvas.width, canvas.height);
-              context.fillStyle = 'black';
-              context.font = '16px Arial';
+              
+              // Text
+              context.fillStyle = 'white';
+              context.font = `${graphNode.isRoot ? '24' : '18'}px Arial`;
               context.textAlign = 'center';
-              context.fillText(
-                graphNode.name.length > 20 ? graphNode.name.substring(0, 20) + '...' : graphNode.name,
-                canvas.width / 2,
-                canvas.height / 2 + 6
-              );
+              context.textBaseline = 'middle';
+              
+              const maxWidth = canvas.width - 20;
+              const text = graphNode.name.length > 30 ? graphNode.name.substring(0, 30) + '...' : graphNode.name;
+              context.fillText(text, canvas.width / 2, canvas.height / 2);
 
               const texture = new THREE.CanvasTexture(canvas);
-              const spriteMaterial = new THREE.SpriteMaterial({ map: texture });
+              const spriteMaterial = new THREE.SpriteMaterial({ 
+                map: texture,
+                transparent: true,
+                opacity: isZoomedOut && !graphNode.isRoot ? 0.7 : 1
+              });
               const sprite = new THREE.Sprite(spriteMaterial);
-              sprite.scale.set(20, 5, 1);
-              sprite.position.set(0, graphNode.size + 8, 0);
+              
+              const scale = graphNode.isRoot ? 40 : 30;
+              sprite.scale.set(scale, scale * 0.25, 1);
+              sprite.position.set(0, graphNode.size + 15, 0);
               
               const group = new THREE.Group();
               group.add(sphere);
@@ -252,10 +529,32 @@ export const MindMap3D: React.FC<MindMap3DProps> = ({
 
           return sphere;
         }}
-        d3AlphaDecay={0.01}
-        d3VelocityDecay={0.08}
+        d3AlphaDecay={layoutMode === 'radial' ? 0.05 : 0.01}
+        d3VelocityDecay={layoutMode === 'radial' ? 0.15 : 0.08}
+        d3Force={layoutMode === 'radial' ? 'radial' : undefined}
         warmupTicks={100}
         cooldownTicks={200}
+        onEngineStop={() => {
+          if (layoutMode === 'radial' && fgRef.current) {
+            // Apply radial positioning after force simulation
+            const nodes = graphData.nodes;
+            nodes.forEach((node, i) => {
+              if (node.level === 0) {
+                // Center root nodes
+                fgRef.current.getGraphData().nodes[i].x = 0;
+                fgRef.current.getGraphData().nodes[i].y = 0;
+                fgRef.current.getGraphData().nodes[i].z = 0;
+              } else {
+                // Position other nodes in radial pattern
+                const angle = (i / nodes.length) * 2 * Math.PI;
+                const radius = node.level * 100;
+                fgRef.current.getGraphData().nodes[i].x = Math.cos(angle) * radius;
+                fgRef.current.getGraphData().nodes[i].y = Math.sin(angle) * radius;
+                fgRef.current.getGraphData().nodes[i].z = (Math.random() - 0.5) * 50;
+              }
+            });
+          }
+        }}
       />
     </div>
   );
