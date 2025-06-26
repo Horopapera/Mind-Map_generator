@@ -697,11 +697,13 @@ const generateStandaloneHTML = (nodes: MindMapNode[], inputText: string): string
         let searchTimeout;
         let graph2D, graph3D;
         let highlightedNodes = new Set();
+        let resizeTimeout;
         
         // Initialize the app
         document.addEventListener('DOMContentLoaded', function() {
             initializeViews();
             setupEventListeners();
+            setupResizeHandler();
             renderTreeView();
         });
         
@@ -712,6 +714,33 @@ const generateStandaloneHTML = (nodes: MindMapNode[], inputText: string): string
                     switchView(this.dataset.view);
                 });
             });
+        }
+        
+        function setupResizeHandler() {
+            window.addEventListener('resize', function() {
+                clearTimeout(resizeTimeout);
+                resizeTimeout = setTimeout(() => {
+                    refreshCurrentView();
+                }, 250);
+            });
+        }
+        
+        function refreshCurrentView() {
+            // Force re-render of current view with new dimensions
+            switch(currentView) {
+                case 'tree':
+                    renderTreeView();
+                    break;
+                case 'radial':
+                    renderRadialView();
+                    break;
+                case '2d':
+                    render2DView();
+                    break;
+                case '3d':
+                    render3DView();
+                    break;
+            }
         }
         
         function setupEventListeners() {
@@ -734,6 +763,9 @@ const generateStandaloneHTML = (nodes: MindMapNode[], inputText: string): string
         }
         
         function switchView(viewType) {
+            // Cleanup existing graphs before switching
+            cleanupGraphs();
+            
             // Update active button
             document.querySelectorAll('.view-btn').forEach(btn => {
                 btn.classList.remove('active');
@@ -749,23 +781,54 @@ const generateStandaloneHTML = (nodes: MindMapNode[], inputText: string): string
             currentView = viewType;
             document.getElementById('currentView').textContent = getViewDisplayName(viewType);
             
-            switch(viewType) {
-                case 'tree':
-                    document.getElementById('treeView').classList.remove('hidden');
-                    renderTreeView();
-                    break;
-                case 'radial':
-                    document.getElementById('radialView').classList.remove('hidden');
-                    renderRadialView();
-                    break;
-                case '2d':
-                    document.getElementById('2dView').classList.remove('hidden');
-                    render2DView();
-                    break;
-                case '3d':
-                    document.getElementById('3dView').classList.remove('hidden');
-                    render3DView();
-                    break;
+            // Use requestAnimationFrame to ensure DOM layout is complete
+            requestAnimationFrame(() => {
+                switch(viewType) {
+                    case 'tree':
+                        document.getElementById('treeView').classList.remove('hidden');
+                        setTimeout(() => renderTreeView(), 50);
+                        break;
+                    case 'radial':
+                        document.getElementById('radialView').classList.remove('hidden');
+                        setTimeout(() => renderRadialView(), 50);
+                        break;
+                    case '2d':
+                        document.getElementById('2dView').classList.remove('hidden');
+                        setTimeout(() => render2DView(), 50);
+                        break;
+                    case '3d':
+                        document.getElementById('3dView').classList.remove('hidden');
+                        setTimeout(() => render3DView(), 100);
+                        break;
+                }
+            });
+        }
+        
+        function cleanupGraphs() {
+            // Cleanup 2D graph
+            if (graph2D) {
+                try {
+                    const container2D = document.getElementById('mindmap-2d');
+                    if (container2D) {
+                        container2D.innerHTML = '';
+                    }
+                } catch (e) {
+                    console.warn('Error cleaning up 2D graph:', e);
+                }
+                graph2D = null;
+            }
+            
+            // Cleanup 3D graph
+            if (graph3D) {
+                try {
+                    const container3D = document.getElementById('3dView');
+                    if (container3D) {
+                        container3D.innerHTML = '<div class="loading"><div class="spinner"></div><div>Loading 3D visualization...</div></div>';
+                    }
+                } catch (e) {
+                    console.warn('Error cleaning up 3D graph:', e);
+                }
+                graph3D = null;
             }
         }
         
@@ -837,6 +900,11 @@ const generateStandaloneHTML = (nodes: MindMapNode[], inputText: string): string
         
         function renderRadialView() {
             const container = document.getElementById('mindmap-radial');
+            if (!container || container.clientWidth === 0) {
+                setTimeout(() => renderRadialView(), 100);
+                return;
+            }
+            
             container.innerHTML = '';
             
             // Create SVG for radial layout
@@ -937,6 +1005,11 @@ const generateStandaloneHTML = (nodes: MindMapNode[], inputText: string): string
         
         function render2DView() {
             const container = document.getElementById('mindmap-2d');
+            if (!container || container.clientWidth === 0) {
+                setTimeout(() => render2DView(), 100);
+                return;
+            }
+            
             container.innerHTML = '';
             
             if (typeof ForceGraph === 'undefined') {
@@ -946,24 +1019,36 @@ const generateStandaloneHTML = (nodes: MindMapNode[], inputText: string): string
             
             const graphData = convertToGraphData(mindMapData);
             
-            graph2D = ForceGraph()(container)
-                .graphData(graphData)
-                .nodeLabel(d => d.name)
-                .nodeColor(d => getNodeColor(d.level))
-                .nodeVal(d => Math.max(8 - d.level, 2))
-                .linkColor(() => '#cbd5e1')
-                .onNodeClick(node => {
-                    if (node.children > 0) {
-                        toggleNode(node.id);
-                        render2DView();
-                    }
-                })
-                .width(container.clientWidth)
-                .height(container.clientHeight);
+            try {
+                graph2D = ForceGraph()(container)
+                    .graphData(graphData)
+                    .nodeLabel(d => d.name)
+                    .nodeColor(d => getNodeColor(d.level))
+                    .nodeVal(d => Math.max(8 - d.level, 2))
+                    .linkColor(() => '#cbd5e1')
+                    .linkWidth(2)
+                    .onNodeClick(node => {
+                        if (node.children > 0) {
+                            toggleNode(node.id);
+                        }
+                    })
+                    .width(container.clientWidth)
+                    .height(container.clientHeight)
+                    .cooldownTicks(100)
+                    .d3AlphaDecay(0.02)
+                    .d3VelocityDecay(0.3);
+            } catch (error) {
+                console.error('Error initializing 2D graph:', error);
+                container.innerHTML = '<div class="loading"><div>Error loading 2D visualization</div></div>';
+            }
         }
         
         function render3DView() {
             const container = document.getElementById('3dView');
+            if (!container || container.clientWidth === 0) {
+                setTimeout(() => render3DView(), 100);
+                return;
+            }
             
             if (typeof ForceGraph3D === 'undefined') {
                 container.innerHTML = '<div class="loading"><div class="spinner"></div><div>3D Force Graph library not available</div></div>';
@@ -973,21 +1058,33 @@ const generateStandaloneHTML = (nodes: MindMapNode[], inputText: string): string
             container.innerHTML = '';
             const graphData = convertToGraphData(mindMapData);
             
-            graph3D = ForceGraph3D()(container)
-                .graphData(graphData)
-                .nodeLabel(d => d.name)
-                .nodeColor(d => getNodeColor(d.level))
-                .nodeVal(d => Math.max(8 - d.level, 2))
-                .linkColor(() => '#cbd5e1')
-                .onNodeClick(node => {
-                    if (node.children > 0) {
-                        toggleNode(node.id);
-                        render3DView();
-                    }
-                })
-                .width(container.clientWidth)
-                .height(container.clientHeight)
-                .backgroundColor('rgba(15, 23, 42, 1)');
+            try {
+                graph3D = ForceGraph3D()(container)
+                    .graphData(graphData)
+                    .nodeLabel(d => \`<div style="background: rgba(0,0,0,0.8); color: white; padding: 8px; border-radius: 4px; max-width: 200px; font-size: 12px;">\${d.name}</div>\`)
+                    .nodeColor(d => getNodeColor(d.level))
+                    .nodeVal(d => Math.max(8 - d.level, 2))
+                    .linkColor(() => '#64748b')
+                    .linkWidth(2)
+                    .linkOpacity(0.6)
+                    .onNodeClick(node => {
+                        if (node.children > 0) {
+                            toggleNode(node.id);
+                        }
+                    })
+                    .width(container.clientWidth)
+                    .height(container.clientHeight)
+                    .backgroundColor('rgba(15, 23, 42, 1)')
+                    .showNavInfo(false)
+                    .controlType('orbit')
+                    .enableNodeDrag(false)
+                    .cooldownTicks(200)
+                    .d3AlphaDecay(0.01)
+                    .d3VelocityDecay(0.1);
+            } catch (error) {
+                console.error('Error initializing 3D graph:', error);
+                container.innerHTML = '<div class="loading"><div>Error loading 3D visualization</div></div>';
+            }
         }
         
         function convertToGraphData(nodes) {
@@ -1038,21 +1135,10 @@ const generateStandaloneHTML = (nodes: MindMapNode[], inputText: string): string
         function toggleNode(nodeId) {
             updateNodeExpansion(mindMapData, nodeId, null);
             
-            // Re-render current view
-            switch(currentView) {
-                case 'tree':
-                    renderTreeView();
-                    break;
-                case 'radial':
-                    renderRadialView();
-                    break;
-                case '2d':
-                    render2DView();
-                    break;
-                case '3d':
-                    render3DView();
-                    break;
-            }
+            // Re-render current view with delay to ensure smooth animation
+            setTimeout(() => {
+                renderCurrentView();
+            }, 50);
         }
         
         function updateNodeExpansion(nodes, nodeId, isExpanded) {
@@ -1093,16 +1179,16 @@ const generateStandaloneHTML = (nodes: MindMapNode[], inputText: string): string
         function renderCurrentView() {
             switch(currentView) {
                 case 'tree':
-                    renderTreeView();
+                    setTimeout(() => renderTreeView(), 10);
                     break;
                 case 'radial':
-                    renderRadialView();
+                    setTimeout(() => renderRadialView(), 10);
                     break;
                 case '2d':
-                    render2DView();
+                    setTimeout(() => render2DView(), 10);
                     break;
                 case '3d':
-                    render3DView();
+                    setTimeout(() => render3DView(), 50);
                     break;
             }
         }
