@@ -143,12 +143,6 @@ export const MindMap3D: React.FC<MindMap3DProps> = ({
     }
   };
 
-  const handleNodeHover = (node: any) => {
-    if (fgRef.current) {
-      fgRef.current.nodeLabel(node ? `${node.name}` : '');
-    }
-  };
-
   const highlightText = (text: string, query: string) => {
     if (!query.trim()) return text;
     return text.toLowerCase().includes(query.toLowerCase()) ? `🔍 ${text}` : text;
@@ -208,7 +202,6 @@ export const MindMap3D: React.FC<MindMap3DProps> = ({
         linkWidth={2}
         linkOpacity={0.6}
         onNodeClick={handleNodeClick}
-        onNodeHover={handleNodeHover}
         backgroundColor="rgba(0,0,0,0)"
         showNavInfo={false}
         controlType="orbit"
