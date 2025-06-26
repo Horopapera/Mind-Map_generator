@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import ForceGraph3D from 'react-force-graph-3d';
+import * as THREE from 'three';
 import { MindMapNode } from '../../types/mindmap';
 
 interface MindMap3DProps {
@@ -217,16 +218,16 @@ export const MindMap3D: React.FC<MindMap3DProps> = ({
           const graphNode = node as GraphNode;
           
           // Create a sphere geometry for the node
-          const geometry = new (window as any).THREE.SphereGeometry(graphNode.size);
-          const material = new (window as any).THREE.MeshLambertMaterial({ 
+          const geometry = new THREE.SphereGeometry(graphNode.size);
+          const material = new THREE.MeshLambertMaterial({ 
             color: graphNode.color,
             transparent: true,
             opacity: graphNode.isHighlighted ? 1 : 0.8
           });
-          const sphere = new (window as any).THREE.Mesh(geometry, material);
+          const sphere = new THREE.Mesh(geometry, material);
 
           // Add text label
-          if (typeof (window as any).THREE !== 'undefined') {
+          if (typeof THREE !== 'undefined') {
             const canvas = document.createElement('canvas');
             const context = canvas.getContext('2d');
             if (context) {
@@ -243,13 +244,13 @@ export const MindMap3D: React.FC<MindMap3DProps> = ({
                 canvas.height / 2 + 6
               );
 
-              const texture = new (window as any).THREE.CanvasTexture(canvas);
-              const spriteMaterial = new (window as any).THREE.SpriteMaterial({ map: texture });
-              const sprite = new (window as any).THREE.Sprite(spriteMaterial);
+              const texture = new THREE.CanvasTexture(canvas);
+              const spriteMaterial = new THREE.SpriteMaterial({ map: texture });
+              const sprite = new THREE.Sprite(spriteMaterial);
               sprite.scale.set(20, 5, 1);
               sprite.position.set(0, graphNode.size + 8, 0);
               
-              const group = new (window as any).THREE.Group();
+              const group = new THREE.Group();
               group.add(sphere);
               group.add(sprite);
               return group;
