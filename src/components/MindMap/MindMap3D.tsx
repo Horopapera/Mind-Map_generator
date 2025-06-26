@@ -532,8 +532,19 @@ export const MindMap3D: React.FC<MindMap3DProps> = ({
         d3AlphaDecay={layoutMode === 'radial' ? 0.05 : 0.01}
         d3VelocityDecay={layoutMode === 'radial' ? 0.15 : 0.08}
         d3Force={layoutMode === 'radial' ? 'radial' : undefined}
+        d3AlphaMin={0.001}
+        d3ReheatSimulation={false}
         warmupTicks={100}
         cooldownTicks={200}
+        onEngineStop={() => {
+          // Ensure simulation stops completely to prevent bounce
+          if (fgRef.current) {
+            const simulation = fgRef.current.d3Force('simulation');
+            if (simulation) {
+              simulation.alpha(0);
+            }
+          }
+        }}
       />
     </div>
   );
