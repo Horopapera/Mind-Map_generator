@@ -534,27 +534,6 @@ export const MindMap3D: React.FC<MindMap3DProps> = ({
         d3Force={layoutMode === 'radial' ? 'radial' : undefined}
         warmupTicks={100}
         cooldownTicks={200}
-        onEngineStop={() => {
-          if (layoutMode === 'radial' && fgRef.current) {
-            // Apply radial positioning after force simulation
-            const nodes = graphData.nodes;
-            nodes.forEach((node, i) => {
-              if (node.level === 0) {
-                // Center root nodes
-                fgRef.current.getGraphData().nodes[i].x = 0;
-                fgRef.current.getGraphData().nodes[i].y = 0;
-                fgRef.current.getGraphData().nodes[i].z = 0;
-              } else {
-                // Position other nodes in radial pattern
-                const angle = (i / nodes.length) * 2 * Math.PI;
-                const radius = node.level * 100;
-                fgRef.current.getGraphData().nodes[i].x = Math.cos(angle) * radius;
-                fgRef.current.getGraphData().nodes[i].y = Math.sin(angle) * radius;
-                fgRef.current.getGraphData().nodes[i].z = (Math.random() - 0.5) * 50;
-              }
-            });
-          }
-        }}
       />
     </div>
   );
