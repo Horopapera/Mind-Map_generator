@@ -62,11 +62,21 @@ export const ExportControls: React.FC<ExportControlsProps> = ({
     }
   };
 
-  const handleExportHTML = () => {
+  const handleExportTreeHTML = () => {
     if (isExporting) return;
     setIsExporting(true);
     try {
-      exportToInteractiveHTML(nodes, inputText);
+      exportToTreeHTML(nodes, inputText);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleExport3DHTML = () => {
+    if (isExporting) return;
+    setIsExporting(true);
+    try {
+      exportTo3DHTML(nodes, inputText);
     } finally {
       setIsExporting(false);
     }
@@ -128,13 +138,24 @@ export const ExportControls: React.FC<ExportControlsProps> = ({
 
       {/* Interactive HTML Export */}
       <button
-        onClick={handleExportHTML}
+        onClick={handleExportTreeHTML}
         disabled={isExporting || nodes.length === 0}
         className={nodes.length === 0 ? disabledButtonClass : buttonClass}
-        title="Export as standalone interactive HTML file"
+        title="Export as standalone tree HTML file"
       >
         <Globe size={16} />
-        HTML
+        Tree HTML
+      </button>
+
+      {/* 3D HTML Export */}
+      <button
+        onClick={handleExport3DHTML}
+        disabled={isExporting || nodes.length === 0}
+        className={nodes.length === 0 ? disabledButtonClass : buttonClass}
+        title="Export as standalone 3D HTML file"
+      >
+        <Globe size={16} />
+        3D HTML
       </button>
 
       {/* JSON Export */}

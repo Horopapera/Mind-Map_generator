@@ -136,31 +136,53 @@ export const exportToJSON = (
 };
 
 /**
- * Generate standalone interactive HTML file
+ * Export interactive tree mind map as HTML
  */
-export const exportToInteractiveHTML = (
+export const exportToTreeHTML = (
   nodes: MindMapNode[],
   inputText: string,
   options: ExportOptions = {}
 ): void => {
   try {
-    const filename = options.filename || generateFilename('mindmap-interactive', 'html');
+    const filename = options.filename || generateFilename('mindmap-tree', 'html');
     
-    const htmlContent = generateStandaloneHTML(nodes, inputText);
+    const htmlContent = generateTreeHTML(nodes);
     const htmlBlob = new Blob([htmlContent], { type: 'text/html' });
     
     saveAs(htmlBlob, filename);
-    showSuccessMessage(`Interactive HTML exported as ${filename}`);
+    showSuccessMessage(`Tree HTML exported as ${filename}`);
   } catch (error) {
-    console.error('Interactive HTML export failed:', error);
-    showErrorMessage('Failed to export interactive HTML. Please try again.');
+    console.error('Tree HTML export failed:', error);
+    showErrorMessage('Failed to export tree HTML. Please try again.');
   }
 };
 
 /**
- * Generate standalone HTML with embedded mind map
+ * Export interactive 3D mind map as HTML
  */
-const generateStandaloneHTML = (nodes: MindMapNode[], inputText: string): string => {
+export const exportTo3DHTML = (
+  nodes: MindMapNode[],
+  inputText: string,
+  options: ExportOptions = {}
+): void => {
+  try {
+    const filename = options.filename || generateFilename('mindmap-3d', 'html');
+    
+    const htmlContent = generate3DHTML(nodes);
+    const htmlBlob = new Blob([htmlContent], { type: 'text/html' });
+    
+    saveAs(htmlBlob, filename);
+    showSuccessMessage(`3D HTML exported as ${filename}`);
+  } catch (error) {
+    console.error('3D HTML export failed:', error);
+    showErrorMessage('Failed to export 3D HTML. Please try again.');
+  }
+};
+
+/**
+ * Generate standalone tree HTML with embedded mind map
+ */
+const generateTreeHTML = (nodes: MindMapNode[]): string => {
   const nodesJson = JSON.stringify(nodes, (key, value) => {
     if (key === 'parent') return undefined;
     return value;
@@ -184,7 +206,7 @@ const generateStandaloneHTML = (nodes: MindMapNode[], inputText: string): string
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mind Map Viewer - ${exportDate}</title>
+    <title>Tree Mind Map - ${exportDate}</title>
     <style>
         * {
             margin: 0;
@@ -194,9 +216,8 @@ const generateStandaloneHTML = (nodes: MindMapNode[], inputText: string): string
         
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
-            background: linear-gradient(135deg, #1e3a8a 0%, #3730a3 50%, #581c87 100%);
+            background: linear-gradient(135deg, #0f766e 0%, #059669 50%, #047857 100%);
             min-height: 100vh;
-            overflow: hidden;
             color: #1f2937;
         }
         
@@ -234,7 +255,7 @@ const generateStandaloneHTML = (nodes: MindMapNode[], inputText: string): string
             font-size: 1.5rem;
             font-weight: 700;
             margin-bottom: 4px;
-            background: linear-gradient(45deg, #60a5fa, #a78bfa);
+            background: linear-gradient(45deg, #34d399, #10b981);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
@@ -264,49 +285,11 @@ const generateStandaloneHTML = (nodes: MindMapNode[], inputText: string): string
             border-bottom: 1px solid #e2e8f0;
             padding: 12px 24px;
             display: flex;
-            justify-content: space-between;
+            justify-content: center;
             align-items: center;
             flex-wrap: wrap;
             gap: 16px;
             z-index: 999;
-        }
-        
-        .view-switcher {
-            display: flex;
-            background: white;
-            border-radius: 8px;
-            padding: 4px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-            border: 1px solid #e2e8f0;
-        }
-        
-        .view-btn {
-            padding: 8px 16px;
-            border: none;
-            background: transparent;
-            color: #64748b;
-            font-size: 0.875rem;
-            font-weight: 500;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            position: relative;
-        }
-        
-        .view-btn:hover {
-            color: #3b82f6;
-            background: #f1f5f9;
-        }
-        
-        .view-btn.active {
-            background: #3b82f6;
-            color: white;
-            box-shadow: 0 1px 2px rgba(59, 130, 246, 0.3);
-        }
-        
-        .view-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
         }
         
         .search-container {
@@ -365,27 +348,9 @@ const generateStandaloneHTML = (nodes: MindMapNode[], inputText: string): string
         .mindmap-container {
             flex: 1;
             position: relative;
-            overflow: hidden;
+            overflow: auto;
             background: #ffffff;
-        }
-        
-        .mindmap-2d {
-            width: 100%;
-            height: 100%;
-            overflow: auto;
             padding: 24px;
-        }
-        
-        .mindmap-3d {
-            width: 100%;
-            height: 100%;
-            background: #0f172a;
-            position: relative;
-        }
-        
-        .tree-view {
-            padding: 24px;
-            overflow: auto;
         }
         
         .node {
@@ -487,14 +452,6 @@ const generateStandaloneHTML = (nodes: MindMapNode[], inputText: string): string
             box-shadow: 0 4px 12px rgba(236, 72, 153, 0.3);
         }
         
-        .radial-container {
-            width: 100%;
-            height: 100%;
-            position: relative;
-            overflow: hidden;
-            background: radial-gradient(circle at center, #f8fafc 0%, #e2e8f0 100%);
-        }
-        
         .footer {
             background: #f8fafc;
             border-top: 1px solid #e2e8f0;
@@ -516,30 +473,6 @@ const generateStandaloneHTML = (nodes: MindMapNode[], inputText: string): string
         
         .hidden {
             display: none;
-        }
-        
-        .loading {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            height: 100%;
-            flex-direction: column;
-            gap: 16px;
-            color: #64748b;
-        }
-        
-        .spinner {
-            width: 32px;
-            height: 32px;
-            border: 3px solid #e2e8f0;
-            border-top: 3px solid #3b82f6;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
         }
         
         .search-results {
@@ -578,26 +511,6 @@ const generateStandaloneHTML = (nodes: MindMapNode[], inputText: string): string
             box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1) !important;
         }
         
-        .library-status {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            text-align: center;
-            color: #64748b;
-            font-size: 0.875rem;
-        }
-        
-        .error-message {
-            background: #fef2f2;
-            border: 1px solid #fecaca;
-            color: #dc2626;
-            padding: 12px;
-            border-radius: 8px;
-            margin: 16px;
-            font-size: 0.875rem;
-        }
-        
         @media (max-width: 768px) {
             .header-content {
                 flex-direction: column;
@@ -618,10 +531,6 @@ const generateStandaloneHTML = (nodes: MindMapNode[], inputText: string): string
             .search-input {
                 width: 100%;
             }
-            
-            .view-switcher {
-                justify-content: center;
-            }
         }
     </style>
 </head>
@@ -630,7 +539,7 @@ const generateStandaloneHTML = (nodes: MindMapNode[], inputText: string): string
         <div class="header">
             <div class="header-content">
                 <div class="header-title">
-                    <h1>🧠 Mind Map Viewer</h1>
+                    <h1>🌳 Tree Mind Map</h1>
                     <div class="header-subtitle">Exported on ${exportDate}</div>
                 </div>
                 <div class="header-stats">
@@ -647,21 +556,6 @@ const generateStandaloneHTML = (nodes: MindMapNode[], inputText: string): string
         </div>
         
         <div class="controls-bar">
-            <div class="view-switcher">
-                <button class="view-btn active" data-view="tree">
-                    🌳 Tree
-                </button>
-                <button class="view-btn" data-view="radial">
-                    ⭕ Radial
-                </button>
-                <button class="view-btn" data-view="2d" id="btn2d">
-                    📊 2D Force
-                </button>
-                <button class="view-btn" data-view="3d" id="btn3d">
-                    🌐 3D Force
-                </button>
-            </div>
-            
             <div class="search-container">
                 <div class="search-icon">🔍</div>
                 <input type="text" class="search-input" placeholder="Search nodes..." id="searchInput">
@@ -682,131 +576,26 @@ const generateStandaloneHTML = (nodes: MindMapNode[], inputText: string): string
         </div>
         
         <div class="mindmap-container">
-            <!-- Tree View -->
-            <div id="treeView" class="mindmap-2d tree-view">
-                <div id="mindmap-tree"></div>
-            </div>
-            
-            <!-- Radial View -->
-            <div id="radialView" class="mindmap-2d radial-container hidden">
-                <div id="mindmap-radial"></div>
-            </div>
-            
-            <!-- 2D Force View -->
-            <div id="2dView" class="mindmap-2d hidden">
-                <div id="mindmap-2d"></div>
-            </div>
-            
-            <!-- 3D Force View -->
-            <div id="3dView" class="mindmap-3d hidden">
-                <div class="loading">
-                    <div class="spinner"></div>
-                    <div>Loading 3D visualization...</div>
-                </div>
-            </div>
+            <div id="mindmap-tree"></div>
         </div>
         
         <div class="footer">
-            Exported by <a href="#" onclick="return false;">Mind Map Generator</a> • 
+            Exported by <a href="#" onclick="return false;">Tree Mind Map Generator</a> • 
             Interactive viewer with ${nodeCount} nodes • 
-            <span id="currentView">Tree View</span>
+            Tree Layout
         </div>
     </div>
 
-    <!-- Load external libraries -->
-    <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
-    <script src="https://unpkg.com/force-graph@1.43.0/dist/force-graph.min.js"></script>
-    <script src="https://unpkg.com/3d-force-graph@1.70.0/dist/3d-force-graph.min.js"></script>
-
     <script>
         const mindMapData = ${nodesJson};
-        let currentView = 'tree';
         let searchTimeout;
-        let graph2D, graph3D;
         let highlightedNodes = new Set();
-        let resizeTimeout;
-        let librariesLoaded = {
-            three: false,
-            forceGraph: false,
-            forceGraph3D: false
-        };
         
         // Initialize the app
         document.addEventListener('DOMContentLoaded', function() {
-            checkLibraries();
-            initializeViews();
             setupEventListeners();
-            setupResizeHandler();
             renderTreeView();
         });
-        
-        function checkLibraries() {
-            // Check if libraries are loaded
-            librariesLoaded.three = typeof THREE !== 'undefined';
-            librariesLoaded.forceGraph = typeof ForceGraph !== 'undefined';
-            librariesLoaded.forceGraph3D = typeof ForceGraph3D !== 'undefined';
-            
-            // Disable buttons if libraries aren't available
-            const btn2d = document.getElementById('btn2d');
-            const btn3d = document.getElementById('btn3d');
-            
-            if (!librariesLoaded.forceGraph) {
-                btn2d.disabled = true;
-                btn2d.title = '2D Force Graph library not available';
-                btn2d.style.opacity = '0.5';
-            }
-            
-            if (!librariesLoaded.three || !librariesLoaded.forceGraph3D) {
-                btn3d.disabled = true;
-                btn3d.title = '3D Force Graph library not available';
-                btn3d.style.opacity = '0.5';
-            }
-            
-            // Retry loading libraries after a delay
-            setTimeout(() => {
-                if (!librariesLoaded.forceGraph || !librariesLoaded.forceGraph3D) {
-                    checkLibraries();
-                }
-            }, 2000);
-        }
-        
-        function initializeViews() {
-            // Set up view switching
-            document.querySelectorAll('.view-btn').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    if (!this.disabled) {
-                        switchView(this.dataset.view);
-                    }
-                });
-            });
-        }
-        
-        function setupResizeHandler() {
-            window.addEventListener('resize', function() {
-                clearTimeout(resizeTimeout);
-                resizeTimeout = setTimeout(() => {
-                    refreshCurrentView();
-                }, 250);
-            });
-        }
-        
-        function refreshCurrentView() {
-            // Force re-render of current view with new dimensions
-            switch(currentView) {
-                case 'tree':
-                    renderTreeView();
-                    break;
-                case 'radial':
-                    renderRadialView();
-                    break;
-                case '2d':
-                    render2DView();
-                    break;
-                case '3d':
-                    render3DView();
-                    break;
-            }
-        }
         
         function setupEventListeners() {
             const searchInput = document.getElementById('searchInput');
@@ -825,120 +614,6 @@ const generateStandaloneHTML = (nodes: MindMapNode[], inputText: string): string
                     searchResults.classList.add('hidden');
                 }
             });
-        }
-        
-        function switchView(viewType) {
-            // Check if view is available
-            if (viewType === '2d' && !librariesLoaded.forceGraph) {
-                showError('2D Force Graph library is not available. Please check your internet connection.');
-                return;
-            }
-            
-            if (viewType === '3d' && (!librariesLoaded.three || !librariesLoaded.forceGraph3D)) {
-                showError('3D Force Graph library is not available. Please check your internet connection.');
-                return;
-            }
-            
-            // Cleanup existing graphs before switching
-            cleanupGraphs();
-            
-            // Update active button
-            document.querySelectorAll('.view-btn').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            const activeBtn = document.querySelector(\`[data-view="\${viewType}"]\`);
-            if (activeBtn && !activeBtn.disabled) {
-                activeBtn.classList.add('active');
-            }
-            
-            // Hide all views
-            document.querySelectorAll('#treeView, #radialView, #2dView, #3dView').forEach(view => {
-                view.classList.add('hidden');
-            });
-            
-            // Show selected view
-            currentView = viewType;
-            document.getElementById('currentView').textContent = getViewDisplayName(viewType);
-            
-            // Use requestAnimationFrame to ensure DOM layout is complete
-            requestAnimationFrame(() => {
-                switch(viewType) {
-                    case 'tree':
-                        document.getElementById('treeView').classList.remove('hidden');
-                        setTimeout(() => renderTreeView(), 50);
-                        break;
-                    case 'radial':
-                        document.getElementById('radialView').classList.remove('hidden');
-                        setTimeout(() => renderRadialView(), 50);
-                        break;
-                    case '2d':
-                        document.getElementById('2dView').classList.remove('hidden');
-                        setTimeout(() => render2DView(), 50);
-                        break;
-                    case '3d':
-                        document.getElementById('3dView').classList.remove('hidden');
-                        setTimeout(() => render3DView(), 100);
-                        break;
-                }
-            });
-        }
-        
-        function showError(message) {
-            const container = document.querySelector('.mindmap-container');
-            const errorDiv = document.createElement('div');
-            errorDiv.className = 'error-message';
-            errorDiv.textContent = message;
-            
-            // Remove existing error messages
-            const existingErrors = container.querySelectorAll('.error-message');
-            existingErrors.forEach(error => error.remove());
-            
-            container.appendChild(errorDiv);
-            
-            // Remove error after 5 seconds
-            setTimeout(() => {
-                if (errorDiv.parentNode) {
-                    errorDiv.parentNode.removeChild(errorDiv);
-                }
-            }, 5000);
-        }
-        
-        function cleanupGraphs() {
-            // Cleanup 2D graph
-            if (graph2D) {
-                try {
-                    const container2D = document.getElementById('mindmap-2d');
-                    if (container2D) {
-                        container2D.innerHTML = '';
-                    }
-                } catch (e) {
-                    console.warn('Error cleaning up 2D graph:', e);
-                }
-                graph2D = null;
-            }
-            
-            // Cleanup 3D graph
-            if (graph3D) {
-                try {
-                    const container3D = document.getElementById('3dView');
-                    if (container3D) {
-                        container3D.innerHTML = '<div class="loading"><div class="spinner"></div><div>Loading 3D visualization...</div></div>';
-                    }
-                } catch (e) {
-                    console.warn('Error cleaning up 3D graph:', e);
-                }
-                graph3D = null;
-            }
-        }
-        
-        function getViewDisplayName(viewType) {
-            const names = {
-                'tree': 'Tree View',
-                'radial': 'Radial View',
-                '2d': '2D Force View',
-                '3d': '3D Force View'
-            };
-            return names[viewType] || viewType;
         }
         
         function renderTreeView() {
@@ -1001,256 +676,18 @@ const generateStandaloneHTML = (nodes: MindMapNode[], inputText: string): string
             container.appendChild(nodeDiv);
         }
         
-        function renderRadialView() {
-            const container = document.getElementById('mindmap-radial');
-            if (!container || container.clientWidth === 0) {
-                setTimeout(() => renderRadialView(), 100);
-                return;
-            }
-            
-            container.innerHTML = '';
-            
-            // Create SVG for radial layout
-            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-            svg.style.width = '100%';
-            svg.style.height = '100%';
-            container.appendChild(svg);
-            
-            const centerX = container.clientWidth / 2;
-            const centerY = container.clientHeight / 2;
-            
-            // Calculate positions for radial layout
-            const positions = calculateRadialPositions(mindMapData, centerX, centerY);
-            
-            // Draw connections
-            positions.forEach(pos => {
-                if (pos.parent) {
-                    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                    line.setAttribute('x1', pos.parent.x);
-                    line.setAttribute('y1', pos.parent.y);
-                    line.setAttribute('x2', pos.x);
-                    line.setAttribute('y2', pos.y);
-                    line.setAttribute('stroke', '#cbd5e1');
-                    line.setAttribute('stroke-width', '2');
-                    svg.appendChild(line);
-                }
-            });
-            
-            // Draw nodes
-            positions.forEach(pos => {
-                const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-                circle.setAttribute('cx', pos.x);
-                circle.setAttribute('cy', pos.y);
-                circle.setAttribute('r', Math.max(8 - pos.level, 4));
-                circle.setAttribute('fill', getNodeColor(pos.level));
-                circle.style.cursor = 'pointer';
-                
-                circle.addEventListener('click', () => {
-                    if (pos.node.children.length > 0) {
-                        toggleNode(pos.node.id);
-                        renderRadialView();
-                    }
-                });
-                
-                svg.appendChild(circle);
-                
-                // Add text label
-                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                text.setAttribute('x', pos.x);
-                text.setAttribute('y', pos.y - 15);
-                text.setAttribute('text-anchor', 'middle');
-                text.setAttribute('font-size', '12');
-                text.setAttribute('fill', '#374151');
-                text.textContent = pos.node.label.length > 20 ? 
-                    pos.node.label.substring(0, 20) + '...' : pos.node.label;
-                svg.appendChild(text);
-            });
-        }
-        
-        function calculateRadialPositions(nodes, centerX, centerY) {
-            const positions = [];
-            const baseRadius = 80;
-            const radiusIncrement = 60;
-            
-            function processNode(node, level, angle, parentPos) {
-                const radius = level === 0 ? 0 : baseRadius + (level - 1) * radiusIncrement;
-                const x = level === 0 ? centerX : parentPos.x + Math.cos(angle) * radius;
-                const y = level === 0 ? centerY : parentPos.y + Math.sin(angle) * radius;
-                
-                const pos = { x, y, level, node, parent: parentPos };
-                positions.push(pos);
-                
-                if (node.children.length > 0 && node.isExpanded) {
-                    const angleStep = (2 * Math.PI) / Math.max(node.children.length, 1);
-                    const startAngle = level === 0 ? 0 : angle - (angleStep * (node.children.length - 1)) / 2;
-                    
-                    node.children.forEach((child, index) => {
-                        const childAngle = startAngle + index * angleStep;
-                        processNode(child, level + 1, childAngle, pos);
-                    });
-                }
-                
-                return pos;
-            }
-            
-            if (nodes.length === 1) {
-                processNode(nodes[0], 0, 0, { x: centerX, y: centerY });
-            } else {
-                const angleStep = (2 * Math.PI) / nodes.length;
-                nodes.forEach((node, index) => {
-                    const angle = index * angleStep;
-                    processNode(node, 1, angle, { x: centerX, y: centerY });
-                });
-            }
-            
-            return positions;
-        }
-        
-        function render2DView() {
-            const container = document.getElementById('mindmap-2d');
-            if (!container || container.clientWidth === 0) {
-                setTimeout(() => render2DView(), 100);
-                return;
-            }
-            
-            container.innerHTML = '';
-            
-            if (!librariesLoaded.forceGraph) {
-                container.innerHTML = '<div class="library-status"><div class="spinner"></div><div>Loading 2D Force Graph library...</div><div style="margin-top: 8px; font-size: 0.75rem;">Please check your internet connection</div></div>';
-                return;
-            }
-            
-            const graphData = convertToGraphData(mindMapData);
-            
-            try {
-                graph2D = ForceGraph()(container)
-                    .graphData(graphData)
-                    .nodeLabel(d => d.name)
-                    .nodeColor(d => getNodeColor(d.level))
-                    .nodeVal(d => Math.max(8 - d.level, 2))
-                    .linkColor(() => '#cbd5e1')
-                    .linkWidth(2)
-                    .onNodeClick(node => {
-                        if (node.children > 0) {
-                            toggleNode(node.id);
-                        }
-                    })
-                    .width(container.clientWidth)
-                    .height(container.clientHeight)
-                    .cooldownTicks(100)
-                    .d3AlphaDecay(0.02)
-                    .d3VelocityDecay(0.3);
-            } catch (error) {
-                console.error('Error initializing 2D graph:', error);
-                container.innerHTML = '<div class="library-status"><div>Error loading 2D visualization</div><div style="margin-top: 8px; font-size: 0.75rem;">Please try refreshing the page</div></div>';
-            }
-        }
-        
-        function render3DView() {
-            const container = document.getElementById('3dView');
-            if (!container || container.clientWidth === 0) {
-                setTimeout(() => render3DView(), 100);
-                return;
-            }
-            
-            if (!librariesLoaded.three || !librariesLoaded.forceGraph3D) {
-                container.innerHTML = '<div class="library-status"><div class="spinner"></div><div>Loading 3D Force Graph library...</div><div style="margin-top: 8px; font-size: 0.75rem;">Please check your internet connection</div></div>';
-                return;
-            }
-            
-            container.innerHTML = '';
-            const graphData = convertToGraphData(mindMapData);
-            
-            try {
-                graph3D = ForceGraph3D()(container)
-                    .graphData(graphData)
-                    .nodeLabel(d => \`<div style="background: rgba(0,0,0,0.8); color: white; padding: 8px; border-radius: 4px; max-width: 200px; font-size: 12px;">\${d.name}</div>\`)
-                    .nodeColor(d => getNodeColor(d.level))
-                    .nodeVal(d => Math.max(8 - d.level, 2))
-                    .linkColor(() => '#64748b')
-                    .linkWidth(2)
-                    .linkOpacity(0.6)
-                    .onNodeClick(node => {
-                        if (node.children > 0) {
-                            toggleNode(node.id);
-                        }
-                    })
-                    .width(container.clientWidth)
-                    .height(container.clientHeight)
-                    .backgroundColor('rgba(15, 23, 42, 1)')
-                    .showNavInfo(false)
-                    .controlType('orbit')
-                    .enableNodeDrag(false)
-                    .cooldownTicks(200)
-                    .d3AlphaDecay(0.01)
-                    .d3VelocityDecay(0.1);
-            } catch (error) {
-                console.error('Error initializing 3D graph:', error);
-                container.innerHTML = '<div class="library-status"><div>Error loading 3D visualization</div><div style="margin-top: 8px; font-size: 0.75rem;">Please try refreshing the page</div></div>';
-            }
-        }
-        
-        function convertToGraphData(nodes) {
-            const graphNodes = [];
-            const graphLinks = [];
-            
-            function processNode(node, parentId = null) {
-                graphNodes.push({
-                    id: node.id,
-                    name: node.label,
-                    level: node.level,
-                    children: node.children.length
-                });
-                
-                if (parentId) {
-                    graphLinks.push({
-                        source: parentId,
-                        target: node.id
-                    });
-                }
-                
-                if (node.children.length > 0 && node.isExpanded) {
-                    node.children.forEach(child => {
-                        processNode(child, node.id);
-                    });
-                }
-            }
-            
-            nodes.forEach(rootNode => {
-                processNode(rootNode);
-            });
-            
-            return { nodes: graphNodes, links: graphLinks };
-        }
-        
-        function getNodeColor(level) {
-            const colors = [
-                '#3b82f6', // Blue
-                '#14b8a6', // Teal
-                '#f97316', // Orange
-                '#a855f7', // Purple
-                '#22c55e', // Green
-                '#ec4899'  // Pink
-            ];
-            return colors[level % colors.length];
-        }
-        
         function toggleNode(nodeId) {
-            updateNodeExpansion(mindMapData, nodeId, null);
-            
-            // Re-render current view with delay to ensure smooth animation
-            setTimeout(() => {
-                renderCurrentView();
-            }, 50);
+            updateNodeExpansion(mindMapData, nodeId);
+            renderTreeView();
         }
         
-        function updateNodeExpansion(nodes, nodeId, isExpanded) {
+        function updateNodeExpansion(nodes, nodeId) {
             for (let node of nodes) {
                 if (node.id === nodeId) {
-                    node.isExpanded = isExpanded !== null ? isExpanded : !node.isExpanded;
+                    node.isExpanded = !node.isExpanded;
                     return true;
                 }
-                if (node.children && updateNodeExpansion(node.children, nodeId, isExpanded)) {
+                if (node.children && updateNodeExpansion(node.children, nodeId)) {
                     return true;
                 }
             }
@@ -1259,12 +696,12 @@ const generateStandaloneHTML = (nodes: MindMapNode[], inputText: string): string
         
         function expandAll() {
             setAllExpansion(true);
-            renderCurrentView();
+            renderTreeView();
         }
         
         function collapseAll() {
             setAllExpansion(false);
-            renderCurrentView();
+            renderTreeView();
         }
         
         function setAllExpansion(expanded) {
@@ -1279,30 +716,13 @@ const generateStandaloneHTML = (nodes: MindMapNode[], inputText: string): string
             updateNodes(mindMapData);
         }
         
-        function renderCurrentView() {
-            switch(currentView) {
-                case 'tree':
-                    setTimeout(() => renderTreeView(), 10);
-                    break;
-                case 'radial':
-                    setTimeout(() => renderRadialView(), 10);
-                    break;
-                case '2d':
-                    setTimeout(() => render2DView(), 10);
-                    break;
-                case '3d':
-                    setTimeout(() => render3DView(), 50);
-                    break;
-            }
-        }
-        
         function handleSearch(query) {
             const searchResults = document.getElementById('searchResults');
             
             if (!query.trim()) {
                 searchResults.classList.add('hidden');
                 highlightedNodes.clear();
-                renderCurrentView();
+                renderTreeView();
                 return;
             }
             
@@ -1358,7 +778,7 @@ const generateStandaloneHTML = (nodes: MindMapNode[], inputText: string): string
         function selectNode(nodeId) {
             highlightedNodes.clear();
             highlightedNodes.add(nodeId);
-            renderCurrentView();
+            renderTreeView();
         }
         
         function exportData() {
@@ -1374,6 +794,859 @@ const generateStandaloneHTML = (nodes: MindMapNode[], inputText: string): string
     </script>
 </body>
 </html>`;
+};
+
+/**
+ * Generate standalone 3D HTML with embedded mind map
+ */
+const generate3DHTML = (nodes: MindMapNode[]): string => {
+  const nodesJson = JSON.stringify(nodes, (key, value) => {
+    if (key === 'parent') return undefined;
+    return value;
+  });
+
+  const exportDate = new Date().toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
+
+  const nodeCount = nodes.reduce((count, node) => {
+    const countChildren = (n: MindMapNode): number => {
+      return 1 + n.children.reduce((sum, child) => sum + countChildren(child), 0);
+    };
+    return count + countChildren(node);
+  }, 0);
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Mind Map - ${exportDate}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #581c87 100%);
+            min-height: 100vh;
+            overflow: hidden;
+            color: white;
+        }
+        
+        .container {
+            width: 100vw;
+            height: 100vh;
+            background: #0f172a;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: white;
+            padding: 16px 24px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+            position: relative;
+            border-bottom: 1px solid #334155;
+        }
+        
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .header-title {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header-title h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 4px;
+            background: linear-gradient(45deg, #8b5cf6, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .header-subtitle {
+            font-size: 0.875rem;
+            opacity: 0.8;
+            font-weight: 400;
+        }
+        
+        .header-stats {
+            display: flex;
+            gap: 24px;
+            font-size: 0.875rem;
+            opacity: 0.9;
+        }
+        
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .controls-bar {
+            background: rgba(15, 23, 42, 0.95);
+            border-bottom: 1px solid #334155;
+            padding: 12px 24px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+            z-index: 999;
+            backdrop-filter: blur(10px);
+        }
+        
+        .search-container {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        
+        .search-input {
+            width: 280px;
+            padding: 8px 12px 8px 36px;
+            border: 1px solid #475569;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            background: rgba(30, 41, 59, 0.8);
+            color: white;
+            transition: all 0.2s ease;
+        }
+        
+        .search-input::placeholder {
+            color: #94a3b8;
+        }
+        
+        .search-input:focus {
+            outline: none;
+            border-color: #8b5cf6;
+            box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2);
+        }
+        
+        .search-icon {
+            position: absolute;
+            left: 12px;
+            color: #94a3b8;
+            pointer-events: none;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .action-btn {
+            padding: 8px 12px;
+            border: 1px solid #475569;
+            background: rgba(30, 41, 59, 0.8);
+            color: #e2e8f0;
+            font-size: 0.875rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .action-btn:hover {
+            background: rgba(51, 65, 85, 0.8);
+            border-color: #64748b;
+            transform: translateY(-1px);
+        }
+        
+        .mindmap-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            background: #0f172a;
+        }
+        
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 16px;
+            color: #94a3b8;
+        }
+        
+        .spinner {
+            width: 32px;
+            height: 32px;
+            border: 3px solid #334155;
+            border-top: 3px solid #8b5cf6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .search-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: rgba(15, 23, 42, 0.95);
+            border: 1px solid #475569;
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+        }
+        
+        .search-result {
+            padding: 8px 12px;
+            cursor: pointer;
+            border-bottom: 1px solid #334155;
+            font-size: 0.875rem;
+            color: #e2e8f0;
+        }
+        
+        .search-result:hover {
+            background: rgba(51, 65, 85, 0.8);
+        }
+        
+        .search-result:last-child {
+            border-bottom: none;
+        }
+        
+        .footer {
+            background: rgba(15, 23, 42, 0.95);
+            border-top: 1px solid #334155;
+            padding: 12px 24px;
+            text-align: center;
+            font-size: 0.75rem;
+            color: #94a3b8;
+            backdrop-filter: blur(10px);
+        }
+        
+        .footer a {
+            color: #8b5cf6;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        
+        .footer a:hover {
+            text-decoration: underline;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .error-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(239, 68, 68, 0.9);
+            border: 1px solid #dc2626;
+            color: white;
+            padding: 16px 24px;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            text-align: center;
+            backdrop-filter: blur(10px);
+        }
+        
+        .controls-overlay {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 0.75rem;
+            color: #94a3b8;
+            backdrop-filter: blur(10px);
+            z-index: 100;
+        }
+        
+        .controls-overlay div {
+            margin-bottom: 4px;
+        }
+        
+        .controls-overlay div:last-child {
+            margin-bottom: 0;
+        }
+        
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                gap: 12px;
+                align-items: flex-start;
+            }
+            
+            .header-stats {
+                gap: 16px;
+            }
+            
+            .controls-bar {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 12px;
+            }
+            
+            .search-input {
+                width: 100%;
+            }
+            
+            .controls-overlay {
+                bottom: 10px;
+                right: 10px;
+                font-size: 0.625rem;
+                padding: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="header-content">
+                <div class="header-title">
+                    <h1>🌐 3D Mind Map</h1>
+                    <div class="header-subtitle">Exported on ${exportDate}</div>
+                </div>
+                <div class="header-stats">
+                    <div class="stat-item">
+                        <span>📊</span>
+                        <span>${nodeCount} nodes</span>
+                    </div>
+                    <div class="stat-item">
+                        <span>🌳</span>
+                        <span>${nodes.length} root${nodes.length !== 1 ? 's' : ''}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="controls-bar">
+            <div class="search-container">
+                <div class="search-icon">🔍</div>
+                <input type="text" class="search-input" placeholder="Search nodes..." id="searchInput">
+                <div class="search-results hidden" id="searchResults"></div>
+            </div>
+            
+            <div class="action-buttons">
+                <button class="action-btn" onclick="expandAll()">
+                    ⬇️ Expand All
+                </button>
+                <button class="action-btn" onclick="collapseAll()">
+                    ⬆️ Collapse All
+                </button>
+                <button class="action-btn" onclick="resetView()">
+                    🏠 Reset View
+                </button>
+                <button class="action-btn" onclick="exportData()">
+                    💾 Export JSON
+                </button>
+            </div>
+        </div>
+        
+        <div class="mindmap-container" id="mindmapContainer">
+            <div class="loading" id="loadingIndicator">
+                <div class="spinner"></div>
+                <div>Loading 3D Mind Map...</div>
+                <div style="font-size: 0.75rem; margin-top: 8px;">Please wait while libraries load</div>
+            </div>
+        </div>
+        
+        <div class="controls-overlay">
+            <div>🖱️ Click: Select node</div>
+            <div>🖱️ Double-click: Expand/Collapse</div>
+            <div>🔄 Drag: Rotate view</div>
+            <div>🔍 Scroll: Zoom in/out</div>
+        </div>
+        
+        <div class="footer">
+            Exported by <a href="#" onclick="return false;">3D Mind Map Generator</a> • 
+            Interactive 3D viewer with ${nodeCount} nodes • 
+            WebGL Powered
+        </div>
+    </div>
+
+    <!-- Load Three.js and 3D Force Graph -->
+    <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+    <script src="https://unpkg.com/3d-force-graph@1.70.0/dist/3d-force-graph.min.js"></script>
+
+    <script>
+        const mindMapData = ${nodesJson};
+        let searchTimeout;
+        let graph3D;
+        let highlightedNodes = new Set();
+        let librariesLoaded = false;
+        
+        // Initialize the app
+        document.addEventListener('DOMContentLoaded', function() {
+            setupEventListeners();
+            checkLibrariesAndInit();
+        });
+        
+        function checkLibrariesAndInit() {
+            // Check if libraries are loaded
+            if (typeof THREE !== 'undefined' && typeof ForceGraph3D !== 'undefined') {
+                librariesLoaded = true;
+                setTimeout(() => {
+                    render3DView();
+                }, 500);
+            } else {
+                // Retry after delay
+                setTimeout(checkLibrariesAndInit, 1000);
+            }
+        }
+        
+        function setupEventListeners() {
+            const searchInput = document.getElementById('searchInput');
+            const searchResults = document.getElementById('searchResults');
+            
+            searchInput.addEventListener('input', function() {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => {
+                    handleSearch(this.value);
+                }, 300);
+            });
+            
+            // Close search results when clicking outside
+            document.addEventListener('click', function(e) {
+                if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+                    searchResults.classList.add('hidden');
+                }
+            });
+            
+            // Handle window resize
+            window.addEventListener('resize', function() {
+                if (graph3D) {
+                    const container = document.getElementById('mindmapContainer');
+                    graph3D.width(container.clientWidth).height(container.clientHeight);
+                }
+            });
+        }
+        
+        function render3DView() {
+            const container = document.getElementById('mindmapContainer');
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            
+            if (!librariesLoaded) {
+                showError('3D libraries failed to load. Please check your internet connection and refresh the page.');
+                return;
+            }
+            
+            // Hide loading indicator
+            if (loadingIndicator) {
+                loadingIndicator.style.display = 'none';
+            }
+            
+            const graphData = convertToGraphData(mindMapData);
+            
+            try {
+                graph3D = ForceGraph3D()(container)
+                    .graphData(graphData)
+                    .nodeLabel(d => \`
+                        <div style="
+                            background: rgba(0,0,0,0.9); 
+                            color: white; 
+                            padding: 12px; 
+                            border-radius: 8px; 
+                            max-width: 250px; 
+                            font-size: 13px;
+                            border: 1px solid #8b5cf6;
+                            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                        ">
+                            <div style="font-weight: bold; margin-bottom: 6px; color: #a78bfa;">\${d.name}</div>
+                            <div style="font-size: 11px; color: #cbd5e1;">
+                                Level: \${d.level}<br/>
+                                Children: \${d.children}
+                            </div>
+                        </div>
+                    \`)
+                    .nodeColor(d => {
+                        if (highlightedNodes.has(d.id)) return '#fbbf24';
+                        return getNodeColor(d.level);
+                    })
+                    .nodeVal(d => {
+                        const baseSize = Math.max(12 - d.level * 2, 4);
+                        const childBonus = Math.min(d.children * 2, 8);
+                        return baseSize + childBonus;
+                    })
+                    .linkColor(link => {
+                        if (highlightedNodes.has(link.source.id) || highlightedNodes.has(link.target.id)) {
+                            return '#fbbf24';
+                        }
+                        return '#64748b';
+                    })
+                    .linkWidth(link => {
+                        if (highlightedNodes.has(link.source.id) || highlightedNodes.has(link.target.id)) {
+                            return 4;
+                        }
+                        return 2;
+                    })
+                    .linkOpacity(0.7)
+                    .onNodeClick(node => {
+                        selectNode(node.id);
+                        
+                        // Center camera on clicked node
+                        const distance = 200;
+                        graph3D.cameraPosition(
+                            { 
+                                x: node.x + distance, 
+                                y: node.y + distance, 
+                                z: node.z + distance 
+                            },
+                            node,
+                            1500
+                        );
+                    })
+                    .onNodeRightClick(node => {
+                        if (node.children > 0) {
+                            toggleNode(node.id);
+                        }
+                    })
+                    .width(container.clientWidth)
+                    .height(container.clientHeight)
+                    .backgroundColor('rgba(15, 23, 42, 1)')
+                    .showNavInfo(false)
+                    .controlType('orbit')
+                    .enableNodeDrag(false)
+                    .cooldownTicks(300)
+                    .d3AlphaDecay(0.01)
+                    .d3VelocityDecay(0.08)
+                    .nodeThreeObject(node => {
+                        // Create enhanced 3D nodes with glow effects
+                        const group = new THREE.Group();
+                        
+                        // Main sphere
+                        const geometry = new THREE.SphereGeometry(node.val || 8);
+                        const material = new THREE.MeshLambertMaterial({ 
+                            color: node.color,
+                            transparent: true,
+                            opacity: 0.9
+                        });
+                        const sphere = new THREE.Mesh(geometry, material);
+                        group.add(sphere);
+                        
+                        // Glow effect for highlighted nodes
+                        if (highlightedNodes.has(node.id)) {
+                            const glowGeometry = new THREE.SphereGeometry((node.val || 8) * 1.5);
+                            const glowMaterial = new THREE.MeshBasicMaterial({
+                                color: '#fbbf24',
+                                transparent: true,
+                                opacity: 0.3
+                            });
+                            const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+                            group.add(glow);
+                        }
+                        
+                        // Add text label for important nodes
+                        if (node.level <= 2 || highlightedNodes.has(node.id)) {
+                            const canvas = document.createElement('canvas');
+                            const context = canvas.getContext('2d');
+                            canvas.width = 256;
+                            canvas.height = 64;
+                            
+                            context.fillStyle = 'rgba(0, 0, 0, 0.8)';
+                            context.fillRect(0, 0, canvas.width, canvas.height);
+                            
+                            context.fillStyle = 'white';
+                            context.font = '16px Arial';
+                            context.textAlign = 'center';
+                            context.textBaseline = 'middle';
+                            
+                            const text = node.name.length > 20 ? node.name.substring(0, 20) + '...' : node.name;
+                            context.fillText(text, canvas.width / 2, canvas.height / 2);
+                            
+                            const texture = new THREE.CanvasTexture(canvas);
+                            const spriteMaterial = new THREE.SpriteMaterial({ 
+                                map: texture,
+                                transparent: true
+                            });
+                            const sprite = new THREE.Sprite(spriteMaterial);
+                            sprite.scale.set(30, 7.5, 1);
+                            sprite.position.set(0, (node.val || 8) + 15, 0);
+                            group.add(sprite);
+                        }
+                        
+                        return group;
+                    });
+                    
+                // Auto-fit view after initial render
+                setTimeout(() => {
+                    if (graph3D) {
+                        graph3D.zoomToFit(2000);
+                    }
+                }, 1000);
+                
+            } catch (error) {
+                console.error('Error initializing 3D graph:', error);
+                showError('Failed to initialize 3D visualization. Please refresh the page and try again.');
+            }
+        }
+        
+        function convertToGraphData(nodes) {
+            const graphNodes = [];
+            const graphLinks = [];
+            
+            function processNode(node, parentId = null) {
+                graphNodes.push({
+                    id: node.id,
+                    name: node.label,
+                    level: node.level,
+                    children: node.children.length,
+                    color: getNodeColor(node.level)
+                });
+                
+                if (parentId) {
+                    graphLinks.push({
+                        source: parentId,
+                        target: node.id
+                    });
+                }
+                
+                if (node.children.length > 0 && node.isExpanded) {
+                    node.children.forEach(child => {
+                        processNode(child, node.id);
+                    });
+                }
+            }
+            
+            nodes.forEach(rootNode => {
+                processNode(rootNode);
+            });
+            
+            return { nodes: graphNodes, links: graphLinks };
+        }
+        
+        function getNodeColor(level) {
+            const colors = [
+                '#8b5cf6', // Purple
+                '#06b6d4', // Cyan
+                '#10b981', // Emerald
+                '#f59e0b', // Amber
+                '#ef4444', // Red
+                '#3b82f6', // Blue
+                '#84cc16', // Lime
+                '#ec4899'  // Pink
+            ];
+            return colors[level % colors.length];
+        }
+        
+        function toggleNode(nodeId) {
+            updateNodeExpansion(mindMapData, nodeId);
+            
+            // Re-render with smooth transition
+            setTimeout(() => {
+                const graphData = convertToGraphData(mindMapData);
+                if (graph3D) {
+                    graph3D.graphData(graphData);
+                }
+            }, 100);
+        }
+        
+        function updateNodeExpansion(nodes, nodeId) {
+            for (let node of nodes) {
+                if (node.id === nodeId) {
+                    node.isExpanded = !node.isExpanded;
+                    return true;
+                }
+                if (node.children && updateNodeExpansion(node.children, nodeId)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        
+        function expandAll() {
+            setAllExpansion(true);
+            refreshGraph();
+        }
+        
+        function collapseAll() {
+            setAllExpansion(false);
+            refreshGraph();
+        }
+        
+        function setAllExpansion(expanded) {
+            function updateNodes(nodes) {
+                nodes.forEach(node => {
+                    if (node.children.length > 0) {
+                        node.isExpanded = expanded;
+                        updateNodes(node.children);
+                    }
+                });
+            }
+            updateNodes(mindMapData);
+        }
+        
+        function refreshGraph() {
+            if (graph3D) {
+                const graphData = convertToGraphData(mindMapData);
+                graph3D.graphData(graphData);
+                
+                // Auto-fit view after expansion/collapse
+                setTimeout(() => {
+                    graph3D.zoomToFit(1500);
+                }, 500);
+            }
+        }
+        
+        function resetView() {
+            if (graph3D) {
+                highlightedNodes.clear();
+                refreshGraph();
+                graph3D.zoomToFit(2000);
+            }
+        }
+        
+        function handleSearch(query) {
+            const searchResults = document.getElementById('searchResults');
+            
+            if (!query.trim()) {
+                searchResults.classList.add('hidden');
+                highlightedNodes.clear();
+                refreshGraph();
+                return;
+            }
+            
+            const results = searchNodes(mindMapData, query);
+            
+            if (results.length > 0) {
+                searchResults.innerHTML = '';
+                results.slice(0, 10).forEach(node => {
+                    const resultDiv = document.createElement('div');
+                    resultDiv.className = 'search-result';
+                    resultDiv.innerHTML = \`
+                        <div>\${highlightSearchTerm(node.label, query)}</div>
+                        <div style="font-size: 0.75rem; color: #94a3b8;">Level \${node.level} • \${node.children.length} children</div>
+                    \`;
+                    resultDiv.addEventListener('click', () => {
+                        selectNode(node.id);
+                        searchResults.classList.add('hidden');
+                        document.getElementById('searchInput').value = '';
+                        
+                        // Focus on selected node
+                        if (graph3D) {
+                            const graphData = convertToGraphData(mindMapData);
+                            const targetNode = graphData.nodes.find(n => n.id === node.id);
+                            if (targetNode) {
+                                setTimeout(() => {
+                                    graph3D.cameraPosition(
+                                        { x: 150, y: 150, z: 150 },
+                                        targetNode,
+                                        2000
+                                    );
+                                }, 100);
+                            }
+                        }
+                    });
+                    searchResults.appendChild(resultDiv);
+                });
+                searchResults.classList.remove('hidden');
+            } else {
+                searchResults.innerHTML = '<div class="search-result">No results found</div>';
+                searchResults.classList.remove('hidden');
+            }
+        }
+        
+        function searchNodes(nodes, query) {
+            const results = [];
+            
+            function traverse(nodeList) {
+                nodeList.forEach(node => {
+                    if (node.label.toLowerCase().includes(query.toLowerCase())) {
+                        results.push(node);
+                    }
+                    if (node.children.length > 0) {
+                        traverse(node.children);
+                    }
+                });
+            }
+            
+            traverse(nodes);
+            return results;
+        }
+        
+        function highlightSearchTerm(text, term) {
+            if (!term) return text;
+            const regex = new RegExp(\`(\${term})\`, 'gi');
+            return text.replace(regex, '<mark style="background: #fbbf24; color: #1f2937; padding: 1px 2px; border-radius: 2px;">$1</mark>');
+        }
+        
+        function selectNode(nodeId) {
+            highlightedNodes.clear();
+            highlightedNodes.add(nodeId);
+            refreshGraph();
+        }
+        
+        function showError(message) {
+            const container = document.getElementById('mindmapContainer');
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message';
+            errorDiv.innerHTML = \`
+                <div style="font-weight: bold; margin-bottom: 8px;">⚠️ Error</div>
+                <div>\${message}</div>
+            \`;
+            
+            // Remove existing error messages
+            const existingErrors = container.querySelectorAll('.error-message');
+            existingErrors.forEach(error => error.remove());
+            
+            container.appendChild(errorDiv);
+        }
+        
+        function exportData() {
+            const dataStr = JSON.stringify(mindMapData, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'mindmap-3d-export-\${new Date().toISOString().split('T')[0]}.json';
+            link.click();
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>`;
+};
+
+/**
+ * Legacy function for backward compatibility
+ */
+export const exportToInteractiveHTML = (
+  nodes: MindMapNode[],
+  inputText: string,
+  options: ExportOptions = {}
+): void => {
+  // Default to tree export for backward compatibility
+  exportToTreeHTML(nodes, inputText, options);
 };
 
 /**
