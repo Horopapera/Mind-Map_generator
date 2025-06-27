@@ -109,6 +109,70 @@ export const export3DToPNG = async (
 };
 
 /**
+ * Export mind map as standalone branched/tree HTML
+ */
+export const exportToBranchedHTML = (
+  nodes: MindMapNode[],
+  options: ExportOptions = {}
+): void => {
+  try {
+    const filename = options.filename || generateFilename('mindmap-branched', 'html');
+    
+    const htmlContent = generateBranchedHTML(nodes);
+    const htmlBlob = new Blob([htmlContent], { type: 'text/html' });
+    
+    saveAs(htmlBlob, filename);
+    showSuccessMessage(`Branched HTML exported as ${filename}`);
+  } catch (error) {
+    console.error('Branched HTML export failed:', error);
+    showErrorMessage('Failed to export branched HTML. Please try again.');
+  }
+};
+
+/**
+ * Export interactive tree mind map as HTML
+ */
+export const exportToTreeHTML = (
+  nodes: MindMapNode[],
+  inputText: string,
+  options: ExportOptions = {}
+): void => {
+  try {
+    const filename = options.filename || generateFilename('mindmap-tree', 'html');
+    
+    const htmlContent = generateTreeHTML(nodes);
+    const htmlBlob = new Blob([htmlContent], { type: 'text/html' });
+    
+    saveAs(htmlBlob, filename);
+    showSuccessMessage(`Tree HTML exported as ${filename}`);
+  } catch (error) {
+    console.error('Tree HTML export failed:', error);
+    showErrorMessage('Failed to export tree HTML. Please try again.');
+  }
+};
+
+/**
+ * Export mind map as standalone 3D interactive HTML
+ */
+export const exportTo3DHTML = (
+  nodes: MindMapNode[],
+  options: ExportOptions = {}
+): void => {
+  try {
+    const filename = options.filename || generateFilename('mindmap-3d', 'html');
+    
+    const htmlContent = generate3DHTML(nodes);
+    const htmlBlob = new Blob([htmlContent], { type: 'text/html' });
+    
+    saveAs(htmlBlob, filename);
+    showSuccessMessage(`3D Interactive HTML exported as ${filename}`);
+  } catch (error) {
+    console.error('3D HTML export failed:', error);
+    showErrorMessage('Failed to export 3D HTML. Please try again.');
+  }
+};
+
+/**
  * Export mind map data as JSON
  */
 export const exportToJSON = (
@@ -136,47 +200,315 @@ export const exportToJSON = (
 };
 
 /**
- * Export interactive tree mind map as HTML
+ * Generate standalone branched/tree HTML
  */
-export const exportToTreeHTML = (
-  nodes: MindMapNode[],
-  inputText: string,
-  options: ExportOptions = {}
-): void => {
-  try {
-    const filename = options.filename || generateFilename('mindmap-tree', 'html');
-    
-    const htmlContent = generateTreeHTML(nodes);
-    const htmlBlob = new Blob([htmlContent], { type: 'text/html' });
-    
-    saveAs(htmlBlob, filename);
-    showSuccessMessage(`Tree HTML exported as ${filename}`);
-  } catch (error) {
-    console.error('Tree HTML export failed:', error);
-    showErrorMessage('Failed to export tree HTML. Please try again.');
-  }
-};
+const generateBranchedHTML = (nodes: MindMapNode[]): string => {
+  const nodesJson = JSON.stringify(nodes, (key, value) => {
+    if (key === 'parent') return undefined;
+    return value;
+  });
 
-/**
- * Export interactive 3D mind map as HTML
- */
-export const exportTo3DHTML = (
-  nodes: MindMapNode[],
-  inputText: string,
-  options: ExportOptions = {}
-): void => {
-  try {
-    const filename = options.filename || generateFilename('mindmap-3d', 'html');
-    
-    const htmlContent = generate3DHTML(nodes);
-    const htmlBlob = new Blob([htmlContent], { type: 'text/html' });
-    
-    saveAs(htmlBlob, filename);
-    showSuccessMessage(`3D HTML exported as ${filename}`);
-  } catch (error) {
-    console.error('3D HTML export failed:', error);
-    showErrorMessage('Failed to export 3D HTML. Please try again.');
-  }
+  const totalNodes = countAllNodes(nodes);
+  const exportDate = new Date().toLocaleDateString();
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mind Map - Branched View</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #4f46e5 0%, #06b6d4 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: #1f2937;
+            color: #ffffff;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 1.8rem;
+            margin-bottom: 8px;
+        }
+        
+        .header p {
+            opacity: 0.8;
+            font-size: 0.9rem;
+        }
+        
+        .mindmap-container {
+            padding: 30px;
+            min-height: 500px;
+            background: #ffffff;
+        }
+        
+        .stats {
+            padding: 16px 30px;
+            background: #f8fafc;
+            border-top: 1px solid #e2e8f0;
+            color: #64748b;
+            font-size: 14px;
+        }
+        
+        .node {
+            margin-bottom: 16px;
+            position: relative;
+        }
+        
+        .node-content {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+            font-size: 15px;
+            border-left: 4px solid transparent;
+        }
+        
+        .node-content:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+        }
+        
+        .node-icon {
+            width: 100%;
+            height: 20px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .children {
+            margin-left: 32px;
+            margin-top: 12px;
+            position: relative;
+            border-left: 2px solid #e2e8f0;
+            padding-left: 20px;
+        }
+        
+        .child-connector {
+            position: relative;
+        }
+        
+        .child-connector::before {
+            content: '';
+            position: absolute;
+            left: -22px;
+            top: 24px;
+            width: 20px;
+            height: 2px;
+            background: #e2e8f0;
+        }
+        
+        /* Color scheme for different levels */
+        .level-0 { 
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8); 
+            color: white; 
+            border-left-color: #1d4ed8;
+        }
+        .level-1 { 
+            background: linear-gradient(135deg, #14b8a6, #0f766e); 
+            color: white; 
+            border-left-color: #0f766e;
+        }
+        .level-2 { 
+            background: linear-gradient(135deg, #f97316, #c2410c); 
+            color: white; 
+            border-left-color: #c2410c;
+        }
+        .level-3 { 
+            background: linear-gradient(135deg, #a855f7, #7c3aed); 
+            color: white; 
+            border-left-color: #7c3aed;
+        }
+        .level-4 { 
+            background: linear-gradient(135deg, #22c55e, #15803d); 
+            color: white; 
+            border-left-color: #15803d;
+        }
+        .level-5 { 
+            background: linear-gradient(135deg, #ec4899, #be185d); 
+            color: white; 
+            border-left-color: #be185d;
+        }
+        
+        .controls {
+            padding: 20px 30px;
+            border-top: 1px solid #e2e8f0;
+            background: #f8fafc;
+            text-align: center;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 500;
+            margin: 0 8px;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+        }
+        
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+        
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🌳 Mind Map - Branched View</h1>
+            <p>Exported on ${exportDate} • ${totalNodes} nodes</p>
+        </div>
+        
+        <div class="mindmap-container">
+            <div id="mindmap-container"></div>
+        </div>
+        
+        <div class="controls">
+            <button class="btn" onclick="expandAll()">Expand All</button>
+            <button class="btn" onclick="collapseAll()">Collapse All</button>
+        </div>
+        
+        <div class="stats">
+            Exported by Mind Map Generator • Total nodes: ${totalNodes}
+        </div>
+    </div>
+
+    <script>
+        const mindMapData = ${nodesJson};
+        
+        function renderNode(node, container) {
+            const nodeDiv = document.createElement('div');
+            nodeDiv.className = 'node';
+            nodeDiv.dataset.nodeId = node.id;
+            
+            const nodeContent = document.createElement('div');
+            nodeContent.className = \`node-content level-\${node.level % 6}\`;
+            
+            const icon = document.createElement('span');
+            icon.className = 'node-icon';
+            icon.innerHTML = node.children.length > 0 ? 
+                (node.isExpanded ? '▼' : '▶') : '●';
+            
+            const label = document.createElement('span');
+            label.textContent = node.label;
+            
+            nodeContent.appendChild(icon);
+            nodeContent.appendChild(label);
+            nodeDiv.appendChild(nodeContent);
+            
+            if (node.children.length > 0) {
+                nodeContent.style.cursor = 'pointer';
+                nodeContent.onclick = () => toggleNode(node.id);
+                
+                const childrenDiv = document.createElement('div');
+                childrenDiv.className = \`children \${node.isExpanded ? '' : 'hidden'}\`;
+                childrenDiv.dataset.parentId = node.id;
+                
+                node.children.forEach(child => {
+                    const childWrapper = document.createElement('div');
+                    childWrapper.className = 'child-connector';
+                    renderNode(child, childWrapper);
+                    childrenDiv.appendChild(childWrapper);
+                });
+                
+                nodeDiv.appendChild(childrenDiv);
+            }
+            
+            container.appendChild(nodeDiv);
+        }
+        
+        function toggleNode(nodeId) {
+            updateNodeExpansion(mindMapData, nodeId);
+            renderMindMap();
+        }
+        
+        function updateNodeExpansion(nodes, nodeId) {
+            for (let node of nodes) {
+                if (node.id === nodeId) {
+                    node.isExpanded = !node.isExpanded;
+                    return true;
+                }
+                if (node.children && updateNodeExpansion(node.children, nodeId)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        
+        function expandAll() {
+            setAllExpansion(true);
+            renderMindMap();
+        }
+        
+        function collapseAll() {
+            setAllExpansion(false);
+            renderMindMap();
+        }
+        
+        function setAllExpansion(expanded) {
+            function updateNodes(nodes) {
+                nodes.forEach(node => {
+                    if (node.children.length > 0) {
+                        node.isExpanded = expanded;
+                        updateNodes(node.children);
+                    }
+                });
+            }
+            updateNodes(mindMapData);
+        }
+        
+        function renderMindMap() {
+            const container = document.getElementById('mindmap-container');
+            container.innerHTML = '';
+            mindMapData.forEach(rootNode => {
+                renderNode(rootNode, container);
+            });
+        }
+        
+        // Initialize
+        renderMindMap();
+    </script>
+</body>
+</html>`;
 };
 
 /**
@@ -1635,6 +1967,25 @@ const generate3DHTML = (nodes: MindMapNode[]): string => {
     </script>
 </body>
 </html>`;
+};
+
+/**
+ * Count total nodes in the tree
+ */
+const countAllNodes = (nodes: MindMapNode[]): number => {
+  let count = 0;
+  
+  const traverse = (nodeList: MindMapNode[]) => {
+    nodeList.forEach(node => {
+      count++;
+      if (node.children.length > 0) {
+        traverse(node.children);
+      }
+    });
+  };
+  
+  traverse(nodes);
+  return count;
 };
 
 /**

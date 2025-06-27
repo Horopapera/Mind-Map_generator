@@ -1,11 +1,12 @@
 import React, { useRef } from 'react';
-import { Download, FileImage, FileCode, Globe, FileText } from 'lucide-react';
+import { Download, FileImage, FileCode, TreePine, Box, FileText } from 'lucide-react';
 import { MindMapNode, VisualizationType } from '../../types/mindmap';
 import { 
   exportToPNG, 
   exportToSVG, 
   exportToJSON, 
-  exportToInteractiveHTML,
+  exportToBranchedHTML,
+  exportTo3DHTML,
   export3DToPNG 
 } from '../../lib/exportUtils';
 
@@ -66,7 +67,7 @@ export const ExportControls: React.FC<ExportControlsProps> = ({
     if (isExporting) return;
     setIsExporting(true);
     try {
-      exportToInteractiveHTML(nodes, inputText);
+      exportToBranchedHTML(nodes);
     } finally {
       setIsExporting(false);
     }
@@ -76,7 +77,7 @@ export const ExportControls: React.FC<ExportControlsProps> = ({
     if (isExporting) return;
     setIsExporting(true);
     try {
-      exportToInteractiveHTML(nodes, inputText);
+      exportTo3DHTML(nodes);
     } finally {
       setIsExporting(false);
     }
@@ -141,10 +142,10 @@ export const ExportControls: React.FC<ExportControlsProps> = ({
         onClick={handleExportTreeHTML}
         disabled={isExporting || nodes.length === 0}
         className={nodes.length === 0 ? disabledButtonClass : buttonClass}
-        title="Export as standalone tree HTML file"
+        title="Export as standalone branched/tree HTML file"
       >
-        <Globe size={16} />
-        Tree HTML
+        <TreePine size={16} />
+        Branched HTML
       </button>
 
       {/* 3D HTML Export */}
@@ -152,9 +153,9 @@ export const ExportControls: React.FC<ExportControlsProps> = ({
         onClick={handleExport3DHTML}
         disabled={isExporting || nodes.length === 0}
         className={nodes.length === 0 ? disabledButtonClass : buttonClass}
-        title="Export as standalone 3D HTML file"
+        title="Export as standalone 3D interactive HTML file"
       >
-        <Globe size={16} />
+        <Box size={16} />
         3D HTML
       </button>
 
