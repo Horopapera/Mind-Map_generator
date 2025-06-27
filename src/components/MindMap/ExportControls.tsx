@@ -66,7 +66,7 @@ export const ExportControls: React.FC<ExportControlsProps> = ({
     if (isExporting) return;
     setIsExporting(true);
     try {
-      exportToTreeHTML(nodes, inputText);
+      exportToInteractiveHTML(nodes, inputText);
     } finally {
       setIsExporting(false);
     }
@@ -76,7 +76,7 @@ export const ExportControls: React.FC<ExportControlsProps> = ({
     if (isExporting) return;
     setIsExporting(true);
     try {
-      exportTo3DHTML(nodes, inputText);
+      exportToInteractiveHTML(nodes, inputText);
     } finally {
       setIsExporting(false);
     }
