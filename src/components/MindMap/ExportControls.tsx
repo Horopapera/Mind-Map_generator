@@ -1,12 +1,10 @@
 import React, { useRef } from 'react';
-import { Download, FileImage, FileCode, TreePine, Box, FileText } from 'lucide-react';
+import { Download, FileImage, FileCode, FileText } from 'lucide-react';
 import { MindMapNode, VisualizationType } from '../../types/mindmap';
 import { 
   exportToPNG, 
   exportToSVG, 
   exportToJSON, 
-  exportToBranchedHTML,
-  exportTo3DHTML,
   export3DToPNG 
 } from '../../lib/exportUtils';
 
@@ -58,26 +56,6 @@ export const ExportControls: React.FC<ExportControlsProps> = ({
     setIsExporting(true);
     try {
       exportToJSON(nodes);
-    } finally {
-      setIsExporting(false);
-    }
-  };
-
-  const handleExportTreeHTML = () => {
-    if (isExporting) return;
-    setIsExporting(true);
-    try {
-      exportToBranchedHTML(nodes);
-    } finally {
-      setIsExporting(false);
-    }
-  };
-
-  const handleExport3DHTML = () => {
-    if (isExporting) return;
-    setIsExporting(true);
-    try {
-      exportTo3DHTML(nodes);
     } finally {
       setIsExporting(false);
     }
@@ -135,28 +113,6 @@ export const ExportControls: React.FC<ExportControlsProps> = ({
         {visualizationType === '3d' && (
           <span className="text-xs text-gray-400">(2D only)</span>
         )}
-      </button>
-
-      {/* Interactive HTML Export */}
-      <button
-        onClick={handleExportTreeHTML}
-        disabled={isExporting || nodes.length === 0}
-        className={nodes.length === 0 ? disabledButtonClass : buttonClass}
-        title="Export as standalone branched/tree HTML file"
-      >
-        <TreePine size={16} />
-        Branched HTML
-      </button>
-
-      {/* 3D HTML Export */}
-      <button
-        onClick={handleExport3DHTML}
-        disabled={isExporting || nodes.length === 0}
-        className={nodes.length === 0 ? disabledButtonClass : buttonClass}
-        title="Export as standalone 3D interactive HTML file"
-      >
-        <Box size={16} />
-        3D HTML
       </button>
 
       {/* JSON Export */}
